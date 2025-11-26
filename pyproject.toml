@@ -1,0 +1,184 @@
+[project]
+name = "patient-triage-system"
+version = "0.1.0"
+description = "Patient Triage & Management System - Monorepo with FastAPI Backend and Streamlit Frontend"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+dependencies = [
+    # Backend dependencies
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "sqlalchemy[asyncio]>=2.0.25",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.1",
+    "pydantic[email]>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "dishka>=1.2.0",
+    "httpx>=0.26.0",
+
+    # Frontend dependencies
+    "streamlit>=1.29.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.3",
+    "pytest-cov>=4.1.0",
+    "black>=24.1.1",
+    "ruff>=0.1.14",
+    "mypy>=1.8.0",
+    "bandit>=1.7.5",
+    "safety>=2.3.5",
+]
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+# Backend commands
+dev-backend = {cmd = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload", working_dir = "backend/src"}
+dev-backend-prod = {cmd = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4", working_dir = "backend/src"}
+
+# Frontend commands
+dev-frontend = "streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0"
+
+# Database commands (run from backend directory context)
+migrate = {cmd = "alembic upgrade head", working_dir = "backend"}
+migrate-create = {cmd = "alembic revision --autogenerate -m", working_dir = "backend"}
+migrate-down = {cmd = "alembic downgrade -1", working_dir = "backend"}
+migrate-history = {cmd = "alembic history", working_dir = "backend"}
+
+# Code quality commands
+lint = "ruff check backend/src/ frontend/"
+lint-fix = "ruff check --fix backend/src/ frontend/"
+format = "black backend/src/ backend/tests/ frontend/"
+format-check = "black --check backend/src/ backend/tests/ frontend/"
+typecheck = {cmd = "mypy src/", working_dir = "backend"}
+
+# Testing commands
+test = {cmd = "pytest tests/ -v", working_dir = "backend"}
+test-cov = {cmd = "pytest tests/ -v --cov=app --cov-report=html --cov-report=term", working_dir = "backend"}
+test-watch = {cmd = "pytest-watch tests/", working_dir = "backend"}
+
+# Security commands
+security-check = "bandit -r backend/src/ -f json"
+security-deps = "safety check"
+
+# Docker commands (run from root)
+docker-up = "docker-compose up -d"
+docker-down = "docker-compose down"
+docker-logs = "docker-compose logs -f"
+docker-build = "docker-compose build"
+docker-clean = "docker-compose down -v"
+
+# Combined development (requires docker-compose)
+dev-all = "docker-compose up"
+
+# Install commands
+install = "pdm install"
+install-prod = "pdm install --prod"
+install-dev = "pdm install -d"
+
+# CI/CD simulation
+ci-backend = {composite = ["lint", "typecheck", "test"]}
+ci-all = {composite = ["lint", "format-check", "typecheck", "test", "security-check"]}
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "C",   # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"backend/alembic/env.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+exclude = [
+    "frontend/",
+    "build/",
+    "dist/",
+]
+
+[[tool.mypy.overrides]]
+module = "dishka.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "streamlit.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["backend/tests"]
+pythonpath = ["backend/src"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["backend/src/app"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

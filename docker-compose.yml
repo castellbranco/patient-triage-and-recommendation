@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: triage-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-triage_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - triage-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: triage-backend
+    env_file:
+      - .env.docker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./.env:/app/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - triage-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/public/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: triage-frontend
+    env_file:
+      - .env.docker
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./frontend:/app
+      - ./.env:/app/.env
+    depends_on:
+      - backend
+    command: python -m streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+    networks:
+      - triage-network
+
+networks:
+  triage-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
