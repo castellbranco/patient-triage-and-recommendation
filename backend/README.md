@@ -161,27 +161,6 @@ backend/
 ├── src/
 │   └── app/
 │       ├── main.py                  # FastAPI application entry
-│       ├── domain/                  # Domain layer (business entities)
-│       │   ├── entities/
-│       │   ├── value_objects/
-│       │   └── exceptions/
-│       ├── application/             # Application layer (use cases)
-│       │   ├── use_cases/
-│       │   ├── dtos/
-│       │   └── interfaces/
-│       ├── infrastructure/          # Infrastructure layer
-│       │   ├── database/            # SQLAlchemy models
-│       │   ├── repositories/        # Repository implementations
-│       │   ├── external/            # External API adapters
-│       │   └── config/              # Configuration
-│       ├── presentation/            # Presentation layer
-│       │   ├── api/
-│       │   │   ├── public/v1/       # Public versioned API
-│       │   │   └── internal/        # Internal non-versioned API
-│       │   └── dependencies/        # FastAPI dependencies
-│       └── shared/                  # Shared utilities
-│           ├── utils/
-│           └── constants/
 ├── tests/
 │   ├── unit/                        # Unit tests
 │   ├── integration/                 # Integration tests
@@ -189,7 +168,6 @@ backend/
 ├── scripts/                         # Utility scripts
 ├── alembic/                         # Database migrations
 │   └── versions/                    # Migration files
-├── pyproject.toml                   # PDM configuration
 ├── alembic.ini                      # Alembic configuration
 └── Dockerfile                       # Container image
 ```

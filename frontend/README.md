@@ -71,9 +71,9 @@ Access the application:
 frontend/
 ├── app.py                    # Main Streamlit application entry
 ├── pages/                    # Streamlit multi-page app
-│   ├── 1_🏠_Dashboard.py    # Dashboard overview
-│   ├── 2_👤_Profile.py      # User profile management
-│   └── 3_📅_Appointments.py # Appointment scheduling
+│   ├── dashboard.py    # Dashboard overview
+│   ├── profile.py      # User profile management
+│   └── appointments.py # Appointment scheduling
 ├── components/               # Reusable Streamlit components
 │   └── __init__.py
 ├── shared/                   # Shared utilities
@@ -81,7 +81,6 @@ frontend/
 │   └── auth.py              # Authentication utilities
 ├── tests/                    # Frontend tests
 ├── scripts/                  # Utility scripts
-├── pyproject.toml           # PDM configuration
 ├── Dockerfile               # Container image
 └── README.md                # This file
 ```
