@@ -105,3 +105,6 @@ cython_debug/
 # Keep versions folder but ignore generated migrations during development
 # Uncomment if you want to track migrations:
 # alembic/versions/*.py
+
+null
+.claude/
