@@ -12,8 +12,8 @@ from alembic import context
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from app.infrastructure.database.base import Base
-from app.infrastructure.database import models
+from infrastructure.database.base import Base
+from infrastructure.database import models
 
 config = context.config
 

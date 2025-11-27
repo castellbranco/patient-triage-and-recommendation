@@ -8,8 +8,7 @@ from typing import Optional
 from sqlalchemy import String, ForeignKey, CheckConstraint, Index, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.infrastructure.database.base import (
+from infrastructure.database.base import (
     Base,
     UUIDMixin,
     TimestampMixin,

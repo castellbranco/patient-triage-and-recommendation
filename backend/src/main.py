@@ -11,8 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.presentation.api.public.v1 import health as public_health
-# from app.presentation.api.internal import auth as internal_auth  # Uncomment in Phase 1
+from presentation.api.public.v1 import health as public_health
+# from presentation.api.internal import auth as internal_auth  # Uncomment in Phase 1
 
 
 @asynccontextmanager

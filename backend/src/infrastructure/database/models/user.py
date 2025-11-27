@@ -7,9 +7,9 @@ from typing import Optional
 from sqlalchemy import Boolean, CheckConstraint, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.infrastructure.database.base import (
+from infrastructure.database.base import (
     Base,
-    SoftDeleteMixin, 
+    SoftDeleteMixin,
     TimestampMixin,
     UUIDMixin,
     )

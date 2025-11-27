@@ -2,18 +2,20 @@
 Pytest configuration and fixtures for testing.
 """
 
-import asyncio, os, uuid, pytest, pytest_asyncio
+import asyncio, os, uuid
+import pytest
+import pytest_asyncio
 
 from datetime import date, datetime, timedelta
 from typing import AsyncGenerator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.infrastructure.database.base import Base, create_database_engine
-from app.infrastructure.database.models.user import User
-from app.infrastructure.database.models.patient import Patient
-from app.infrastructure.database.models.appointment import Appointment
-from app.infrastructure.database.models.provider import Provider
+from infrastructure.database.base import Base, create_database_engine
+from infrastructure.database.models.user import User
+from infrastructure.database.models.patient import Patient
+from infrastructure.database.models.appointment import Appointment
+from infrastructure.database.models.provider import Provider
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
