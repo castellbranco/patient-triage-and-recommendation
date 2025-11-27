@@ -13,7 +13,7 @@ dependencies = [
     # Backend dependencies
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
-    "sqlalchemy[asyncio]>=2.0.25",
+    "sqlalchemy>=2.0.44",
     "asyncpg>=0.29.0",
     "alembic>=1.13.1",
     "pydantic[email]>=2.5.3",
@@ -50,14 +50,17 @@ distribution = false
 dev-backend = {cmd = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload", working_dir = "backend/src"}
 dev-backend-prod = {cmd = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4", working_dir = "backend/src"}
 
+
 # Frontend commands
 dev-frontend = "streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0"
 
-# Database commands (run from backend directory context)
+# Database commands 
 migrate = {cmd = "alembic upgrade head", working_dir = "backend"}
 migrate-create = {cmd = "alembic revision --autogenerate -m", working_dir = "backend"}
 migrate-down = {cmd = "alembic downgrade -1", working_dir = "backend"}
 migrate-history = {cmd = "alembic history", working_dir = "backend"}
+
+db-shell = {cmd = "docker exec -it triage-postgres psql -U postgres -d triage_db", working_dir = "."}
 
 # Code quality commands
 lint = "ruff check backend/src/ frontend/"

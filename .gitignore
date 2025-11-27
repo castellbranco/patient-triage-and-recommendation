@@ -38,6 +38,8 @@ htmlcov/
 pytest_debug.log
 
 # PDM
+C:\Users\guicb\Documents\MyraInno\Backend-project\patient-triage-and-recommendation\.python-version
+.python-version
 .pdm-python
 __pypackages__/
 .pdm.toml
