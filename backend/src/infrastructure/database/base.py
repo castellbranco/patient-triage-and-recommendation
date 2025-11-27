@@ -41,7 +41,7 @@ class TimestampMixin:
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
         onupdate=func.now(),
         server_default=None,
     )
