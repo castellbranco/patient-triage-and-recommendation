@@ -2,15 +2,11 @@
 Unit Tests for the User model.
 """
 
-import asyncio
 import pytest
-from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from infrastructure.database.models.user import User
-from infrastructure.database.models.patient import Patient
-from infrastructure.database.models.provider import Provider
 
 @pytest.mark.asyncio
 async def test_create_user_success(db_session, user_factory):
@@ -32,3 +28,22 @@ async def test_create_user_success(db_session, user_factory):
     assert user.last_name == "User"
     assert user.role == "patient"
 
+@pytest.mark.asyncio
+async def test_read_user_by_email(db_session, user_factory):
+    """Test querying a user by email address."""
+    user = user_factory(
+        email = "test@example.com",
+        role = "patient",
+    )
+    
+    db_session.add(user)
+    await db_session.commit()
+    
+    result = await db_session.execute(
+        select(User).where(User.email == "test@example.com")
+    )
+    found_user = result.scalar_one_or_none()
+    
+    assert found_user is not None
+    assert found_user.id == user.id
+    assert found_user.email == "test@example.com"
