@@ -72,9 +72,19 @@ format-check = "black --check backend/src/ backend/tests/ frontend/"
 typecheck = {cmd = "mypy src/", working_dir = "backend"}
 
 # Testing commands
-test = {cmd = "pytest tests/ -v", working_dir = "backend"}
-test-cov = {cmd = "pytest tests/ -v --cov=infrastructure --cov-report=html --cov-report=term", working_dir = "backend"}
+test = {cmd = "pytest tests/ -v --disable-warnings", working_dir = "backend"}
+test-cov = {cmd = "pytest tests/ -v --cov=src --cov-branch --disable-warnings", working_dir = "backend"}
+test-report = {cmd = "coverage report --omit='*/tests/*'", working_dir = "backend"}
+test-xml = {cmd = "coverage xml --omit='*/tests/*'", working_dir = "backend"}
+test-html = {cmd = "coverage html --omit='*/tests/*'", working_dir = "backend"}
 test-watch = {cmd = "pytest-watch tests/", working_dir = "backend"}
+
+# Test by layer
+test-models = {cmd = "pytest tests/unit/models/ -v --disable-warnings", working_dir = "backend"}
+test-repos = {cmd = "pytest tests/unit/repositories/ -v --disable-warnings", working_dir = "backend"}
+test-services = {cmd = "pytest tests/unit/services/ -v --disable-warnings", working_dir = "backend"}
+test-schemas = {cmd = "pytest tests/unit/schemas/ -v --disable-warnings", working_dir = "backend"}
+test-api = {cmd = "pytest tests/unit/api/ -v --disable-warnings", working_dir = "backend"}
 
 # Security commands
 security-check = "bandit -r backend/src/ -f json"
@@ -169,7 +179,8 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 
 [tool.coverage.run]
-source = ["backend/src/infrastructure"]
+source = ["backend/src"]
+branch = true
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
