@@ -1,1 +1,144 @@
-# Patient API - Routes for patient endpoints
+"""
+Patient API Module - Routes for patient endpoints
+
+REST Endpoints:
+- POST /patients/register  → Register patient (creates User + Patient)
+- GET  /patients           → List patients (paginated)
+- GET  /patients/{id}      → Get patient
+- PATCH /patients/{id}     → Update patient
+- DELETE /patients/{id}    → Delete patient (soft)
+"""
+
+from uuid import UUID
+
+from fastapi import APIRouter, status
+
+from infrastructure.api.utils import (
+    Pagination,
+    PatientServiceDep,
+    conflict_exception,
+    not_found_exception,
+)
+from infrastructure.database.schemas.patient import (
+    PatientListResponse,
+    PatientRegister,
+    PatientResponse,
+    PatientUpdate,
+)
+from services.errors import (
+    EmailAlreadyExistsError,
+    PatientNotFoundError,
+)
+
+
+router = APIRouter(prefix="/patients", tags=["Patients"])
+
+
+# =============================================================================
+# Collection Endpoints: /patients
+# =============================================================================
+
+
+@router.post(
+    "/register",
+    response_model=PatientResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register patient",
+    responses={
+        201: {"description": "Patient registered successfully"},
+        409: {"description": "Email already registered"},
+    },
+)
+async def register_patient(
+    data: PatientRegister, service: PatientServiceDep
+) -> PatientResponse:
+    """Register a new patient (creates User + Patient in one call)."""
+    try:
+        patient = await service.register_patient(data)
+        return PatientResponse.model_validate(patient)
+    except EmailAlreadyExistsError:
+        raise conflict_exception("Email", data.email)
+
+
+@router.get(
+    "",
+    response_model=PatientListResponse,
+    summary="List patients",
+    responses={200: {"description": "Patients retrieved"}},
+)
+async def list_patients(
+    service: PatientServiceDep, pagination: Pagination
+) -> PatientListResponse:
+    """List all patients with pagination."""
+    patients = await service.list_patients(skip=pagination.skip, limit=pagination.limit)
+    total = await service.count_patients()
+
+    return PatientListResponse(
+        patients=[PatientResponse.model_validate(p) for p in patients],
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
+
+
+# =============================================================================
+# Resource Endpoints: /patients/{patient_id}
+# =============================================================================
+
+
+@router.get(
+    "/{patient_id}",
+    response_model=PatientResponse,
+    summary="Get patient",
+    responses={
+        200: {"description": "Patient retrieved"},
+        404: {"description": "Patient not found"},
+    },
+)
+async def get_patient(patient_id: UUID, service: PatientServiceDep) -> PatientResponse:
+    """Get a patient by ID."""
+    try:
+        patient = await service.get_patient_or_raise(patient_id)
+        return PatientResponse.model_validate(patient)
+    except PatientNotFoundError:
+        raise not_found_exception("Patient", str(patient_id))
+
+
+@router.patch(
+    "/{patient_id}",
+    response_model=PatientResponse,
+    summary="Update patient",
+    responses={
+        200: {"description": "Patient updated"},
+        404: {"description": "Patient not found"},
+    },
+)
+async def update_patient(
+    patient_id: UUID, data: PatientUpdate, service: PatientServiceDep
+) -> PatientResponse:
+    """Update a patient's profile. Only provided fields are updated."""
+    try:
+        patient = await service.update_patient(patient_id, data)
+        return PatientResponse.model_validate(patient)
+    except PatientNotFoundError:
+        raise not_found_exception("Patient", str(patient_id))
+
+
+@router.delete(
+    "/{patient_id}",
+    response_model=PatientResponse,
+    summary="Delete patient",
+    responses={
+        200: {"description": "Patient deleted"},
+        404: {"description": "Patient not found"},
+    },
+)
+async def delete_patient(
+    patient_id: UUID, service: PatientServiceDep
+) -> PatientResponse:
+    """Soft-delete a patient (data retained for audit)."""
+    try:
+        patient = await service.delete_patient(patient_id)
+        return PatientResponse.model_validate(patient)
+    except PatientNotFoundError:
+        raise not_found_exception("Patient", str(patient_id))

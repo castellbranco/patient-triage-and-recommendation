@@ -1,10 +1,17 @@
 """
 User API Module - Routes for user endpoints
+
+User creation is handled via domain-specific registration:
+- Patients: POST /patients/register
+- Providers: POST /providers/register
+- Admins: Seeded or internal process
+
+This API provides read/update/delete for existing users.
 """
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query
 
 from infrastructure.api.utils import (
     Pagination,
@@ -13,7 +20,6 @@ from infrastructure.api.utils import (
     not_found_exception,
 )
 from infrastructure.database.schemas.user import (
-    UserCreate,
     UserListResponse,
     UserResponse,
     UserRole,
@@ -25,27 +31,9 @@ from services.errors import EmailAlreadyExistsError, UserNotFoundError
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.post(
-    "",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create user",
-    responses={
-        201: {"description": "User created successfully"},
-        409: {"description": "Email already registered"},
-    },
-)
-async def create_user(
-    data: UserCreate,
-    service: UserServiceDep,
-    role: UserRole = Query("patient", description="Role to assign"),
-) -> UserResponse:
-    """Create a new user account."""
-    try:
-        user = await service.create_user(data, role=role)
-        return UserResponse.model_validate(user)
-    except EmailAlreadyExistsError:
-        raise conflict_exception("Email", data.email)
+# =============================================================================
+# Collection Endpoints: /users
+# =============================================================================
 
 
 @router.get(
@@ -74,6 +62,11 @@ async def list_users(
         page=pagination.page,
         page_size=pagination.page_size,
     )
+
+
+# =============================================================================
+# Resource Endpoints: /users/{user_id}
+# =============================================================================
 
 
 @router.get(
