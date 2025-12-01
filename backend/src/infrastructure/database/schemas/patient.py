@@ -5,7 +5,7 @@ Patient Schema Module
 from uuid import UUID
 from typing import Optional
 from datetime import date, datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class AllergySchema(BaseModel):
@@ -40,6 +40,18 @@ class PatientBase(BaseModel):
     country: Optional[str] = Field(None, max_length=100)
     insurance_provider: Optional[str] = Field(None, max_length=100)
     insurance_policy_number: Optional[str] = Field(None, max_length=50)
+
+
+class PatientRegister(PatientBase):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
+    allergies: list[AllergySchema] = Field(default_factory=list)
+    chronic_conditions: list[ChronicConditionSchema] = Field(default_factory=list)
+    medications: list[MedicationSchema] = Field(default_factory=list)
+    emergency_contact: Optional[EmergencyContactSchema] = None
 
 
 class PatientCreate(PatientBase):
