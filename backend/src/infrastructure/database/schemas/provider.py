@@ -5,35 +5,46 @@ Provider Schema Module
 from uuid import UUID
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class ProviderBase(BaseModel):
     specialty: str = Field(..., min_length=1, max_length=100)
     license_number: str = Field(..., min_length=1, max_length=50)
-    credentials: Optional[str] = Field(None, max_length=20)
+    credentials: Optional[str] = Field(None, max_length=200)
     accepting_new_patients: bool = True
     years_of_experience: Optional[int] = Field(None, ge=0)
 
 
-class ProviderCreate(ProviderBase):
-    user_id: UUID
-    languages_spoken: list[str] = Field(default_factory=lambda: ["English"])
+class ProviderRegister(ProviderBase):
+    """Used when registering a new provider (creates User + Provider together)"""
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
+    languages_spoken: list[str] = Field(default_factory=list)
     accepted_insurances: list[str] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
-    additional_info: Optional[dict] = None
+
+
+class ProviderCreate(ProviderBase):
+    """Used internally when user_id already exists"""
+    user_id: UUID
+    languages_spoken: list[str] = Field(default_factory=list)
+    accepted_insurances: list[str] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
 
 
 class ProviderUpdate(BaseModel):
     specialty: Optional[str] = Field(None, min_length=1, max_length=100)
     license_number: Optional[str] = Field(None, min_length=1, max_length=50)
-    credentials: Optional[str] = Field(None, max_length=20)
+    credentials: Optional[str] = Field(None, max_length=200)
     languages_spoken: Optional[list[str]] = None
     accepted_insurances: Optional[list[str]] = None
     certifications: Optional[list[str]] = None
     accepting_new_patients: Optional[bool] = None
     years_of_experience: Optional[int] = Field(None, ge=0)
-    additional_info: Optional[dict] = None
 
 
 class ProviderResponse(ProviderBase):
@@ -41,10 +52,9 @@ class ProviderResponse(ProviderBase):
 
     id: UUID
     user_id: UUID
-    languages_spoken: list[str] = Field(default_factory=lambda: ["English"])
+    languages_spoken: list[str] = Field(default_factory=list)
     accepted_insurances: list[str] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
-    additional_info: Optional[dict] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
