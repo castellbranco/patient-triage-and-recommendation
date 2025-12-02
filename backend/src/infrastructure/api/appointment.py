@@ -6,26 +6,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, status
 
-from infrastructure.api.utils import (
-    Pagination,
-    AppointmentServiceDep,
-    bad_request_exception,
-    not_found_exception,
-)
+from infrastructure.api.utils import Pagination, AppointmentServiceDep
 from infrastructure.database.schemas.appointment import (
     AppointmentCreate,
     AppointmentListResponse,
     AppointmentResponse,
     AppointmentUpdate,
-)
-from services.errors import (
-    AppointmentConflictError,
-    AppointmentInPastError,
-    AppointmentNotFoundError,
-    InvalidAppointmentStatusError,
-    PatientNotFoundError,
-    ProviderNotAcceptingPatientsError,
-    ProviderNotFoundError,
 )
 
 
@@ -47,19 +33,8 @@ async def create_appointment(
     data: AppointmentCreate, service: AppointmentServiceDep
 ) -> AppointmentResponse:
     """Create a new appointment."""
-    try:
-        appointment = await service.create_appointment(data)
-        return AppointmentResponse.model_validate(appointment)
-    except PatientNotFoundError:
-        raise not_found_exception("Patient", str(data.patient_id))
-    except ProviderNotFoundError:
-        raise not_found_exception("Provider", str(data.provider_id))
-    except ProviderNotAcceptingPatientsError:
-        raise bad_request_exception("Provider is not accepting new patients")
-    except AppointmentInPastError:
-        raise bad_request_exception("Cannot schedule appointment in the past")
-    except AppointmentConflictError:
-        raise bad_request_exception("Provider has a scheduling conflict at this time")
+    appointment = await service.create_appointment(data)
+    return AppointmentResponse.model_validate(appointment)
 
 
 @router.get(
@@ -98,11 +73,8 @@ async def get_appointment(
     appointment_id: UUID, service: AppointmentServiceDep
 ) -> AppointmentResponse:
     """Get an appointment by ID."""
-    try:
-        appointment = await service.get_appointment_or_raise(appointment_id)
-        return AppointmentResponse.model_validate(appointment)
-    except AppointmentNotFoundError:
-        raise not_found_exception("Appointment", str(appointment_id))
+    appointment = await service.get_appointment_or_raise(appointment_id)
+    return AppointmentResponse.model_validate(appointment)
 
 
 @router.patch(
@@ -127,17 +99,8 @@ async def update_appointment(
     
     To cancel, include: {"status": "cancelled", "canceled_by_and_why": {...}}
     """
-    try:
-        appointment = await service.update_appointment(appointment_id, data)
-        return AppointmentResponse.model_validate(appointment)
-    except AppointmentNotFoundError:
-        raise not_found_exception("Appointment", str(appointment_id))
-    except InvalidAppointmentStatusError as e:
-        raise bad_request_exception(str(e))
-    except AppointmentInPastError:
-        raise bad_request_exception("Cannot reschedule to a past datetime")
-    except AppointmentConflictError:
-        raise bad_request_exception("Provider has a scheduling conflict at this time")
+    appointment = await service.update_appointment(appointment_id, data)
+    return AppointmentResponse.model_validate(appointment)
 
 
 @router.delete(
@@ -153,8 +116,5 @@ async def delete_appointment(
     appointment_id: UUID, service: AppointmentServiceDep
 ) -> AppointmentResponse:
     """Soft-delete an appointment."""
-    try:
-        appointment = await service.delete_appointment(appointment_id)
-        return AppointmentResponse.model_validate(appointment)
-    except AppointmentNotFoundError:
-        raise not_found_exception("Appointment", str(appointment_id))
+    appointment = await service.delete_appointment(appointment_id)
+    return AppointmentResponse.model_validate(appointment)

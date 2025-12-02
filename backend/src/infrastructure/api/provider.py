@@ -1,34 +1,17 @@
 """
 Provider API Module - Routes for provider endpoints
-
-REST Endpoints:
-- POST /providers/register  → Register provider (creates User + Provider)
-- GET  /providers           → List providers (paginated, filterable)
-- GET  /providers/{id}      → Get provider
-- PATCH /providers/{id}     → Update provider
-- DELETE /providers/{id}    → Delete provider (soft)
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
-from infrastructure.api.utils import (
-    Pagination,
-    ProviderServiceDep,
-    conflict_exception,
-    not_found_exception,
-)
+from infrastructure.api.utils import Pagination, ProviderServiceDep
 from infrastructure.database.schemas.provider import (
     ProviderListResponse,
     ProviderRegister,
     ProviderResponse,
     ProviderUpdate,
-)
-from services.errors import (
-    EmailAlreadyExistsError,
-    LicenseAlreadyExistsError,
-    ProviderNotFoundError,
 )
 
 
@@ -49,13 +32,8 @@ async def register_provider(
     data: ProviderRegister, service: ProviderServiceDep
 ) -> ProviderResponse:
     """Register a new provider (creates User + Provider in one call)."""
-    try:
-        provider = await service.register_provider(data)
-        return ProviderResponse.model_validate(provider)
-    except EmailAlreadyExistsError:
-        raise conflict_exception("Email", data.email)
-    except LicenseAlreadyExistsError:
-        raise conflict_exception("License", data.license_number)
+    provider = await service.register_provider(data)
+    return ProviderResponse.model_validate(provider)
 
 
 @router.get(
@@ -90,6 +68,7 @@ async def list_providers(
         page_size=pagination.page_size,
     )
 
+
 @router.get(
     "/{provider_id}",
     response_model=ProviderResponse,
@@ -103,11 +82,8 @@ async def get_provider(
     provider_id: UUID, service: ProviderServiceDep
 ) -> ProviderResponse:
     """Get a provider by ID."""
-    try:
-        provider = await service.get_provider_or_raise(provider_id)
-        return ProviderResponse.model_validate(provider)
-    except ProviderNotFoundError:
-        raise not_found_exception("Provider", str(provider_id))
+    provider = await service.get_provider_or_raise(provider_id)
+    return ProviderResponse.model_validate(provider)
 
 
 @router.patch(
@@ -124,13 +100,8 @@ async def update_provider(
     provider_id: UUID, data: ProviderUpdate, service: ProviderServiceDep
 ) -> ProviderResponse:
     """Update a provider's profile. Only provided fields are updated."""
-    try:
-        provider = await service.update_provider(provider_id, data)
-        return ProviderResponse.model_validate(provider)
-    except ProviderNotFoundError:
-        raise not_found_exception("Provider", str(provider_id))
-    except LicenseAlreadyExistsError:
-        raise conflict_exception("License", data.license_number)
+    provider = await service.update_provider(provider_id, data)
+    return ProviderResponse.model_validate(provider)
 
 
 @router.delete(
@@ -146,8 +117,5 @@ async def delete_provider(
     provider_id: UUID, service: ProviderServiceDep
 ) -> ProviderResponse:
     """Soft-delete a provider (data retained for audit)."""
-    try:
-        provider = await service.delete_provider(provider_id)
-        return ProviderResponse.model_validate(provider)
-    except ProviderNotFoundError:
-        raise not_found_exception("Provider", str(provider_id))
+    provider = await service.delete_provider(provider_id)
+    return ProviderResponse.model_validate(provider)

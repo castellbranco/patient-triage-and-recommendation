@@ -1,39 +1,21 @@
 """
 User API Module - Routes for user endpoints
-
-User creation is handled via domain-specific registration:
-- Patients: POST /patients/register
-- Providers: POST /providers/register
-- Admins: Seeded or internal process
-
-This API provides read/update/delete for existing users.
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, Query
 
-from infrastructure.api.utils import (
-    Pagination,
-    UserServiceDep,
-    conflict_exception,
-    not_found_exception,
-)
+from infrastructure.api.utils import Pagination, UserServiceDep
 from infrastructure.database.schemas.user import (
     UserListResponse,
     UserResponse,
     UserRole,
     UserUpdate,
 )
-from services.errors import EmailAlreadyExistsError, UserNotFoundError
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
-
-
-# =============================================================================
-# Collection Endpoints: /users
-# =============================================================================
 
 
 @router.get(
@@ -64,11 +46,6 @@ async def list_users(
     )
 
 
-# =============================================================================
-# Resource Endpoints: /users/{user_id}
-# =============================================================================
-
-
 @router.get(
     "/{user_id}",
     response_model=UserResponse,
@@ -80,11 +57,8 @@ async def list_users(
 )
 async def get_user(user_id: UUID, service: UserServiceDep) -> UserResponse:
     """Get a user by ID."""
-    try:
-        user = await service.get_user_or_raise(user_id)
-        return UserResponse.model_validate(user)
-    except UserNotFoundError:
-        raise not_found_exception("User", str(user_id))
+    user = await service.get_user_or_raise(user_id)
+    return UserResponse.model_validate(user)
 
 
 @router.patch(
@@ -101,13 +75,8 @@ async def update_user(
     user_id: UUID, data: UserUpdate, service: UserServiceDep
 ) -> UserResponse:
     """Update a user's profile. Only provided fields are updated."""
-    try:
-        user = await service.update_user(user_id, data)
-        return UserResponse.model_validate(user)
-    except UserNotFoundError:
-        raise not_found_exception("User", str(user_id))
-    except EmailAlreadyExistsError:
-        raise conflict_exception("Email", data.email)
+    user = await service.update_user(user_id, data)
+    return UserResponse.model_validate(user)
 
 
 @router.delete(
@@ -121,8 +90,5 @@ async def update_user(
 )
 async def delete_user(user_id: UUID, service: UserServiceDep) -> UserResponse:
     """Soft-delete a user (data retained for audit)."""
-    try:
-        user = await service.delete_user(user_id)
-        return UserResponse.model_validate(user)
-    except UserNotFoundError:
-        raise not_found_exception("User", str(user_id))
+    user = await service.delete_user(user_id)
+    return UserResponse.model_validate(user)

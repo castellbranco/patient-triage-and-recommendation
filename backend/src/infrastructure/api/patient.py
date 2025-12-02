@@ -1,42 +1,21 @@
 """
 Patient API Module - Routes for patient endpoints
-
-REST Endpoints:
-- POST /patients/register  → Register patient (creates User + Patient)
-- GET  /patients           → List patients (paginated)
-- GET  /patients/{id}      → Get patient
-- PATCH /patients/{id}     → Update patient
-- DELETE /patients/{id}    → Delete patient (soft)
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, status
 
-from infrastructure.api.utils import (
-    Pagination,
-    PatientServiceDep,
-    conflict_exception,
-    not_found_exception,
-)
+from infrastructure.api.utils import Pagination, PatientServiceDep
 from infrastructure.database.schemas.patient import (
     PatientListResponse,
     PatientRegister,
     PatientResponse,
     PatientUpdate,
 )
-from services.errors import (
-    EmailAlreadyExistsError,
-    PatientNotFoundError,
-)
 
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
-
-
-# =============================================================================
-# Collection Endpoints: /patients
-# =============================================================================
 
 
 @router.post(
@@ -53,11 +32,8 @@ async def register_patient(
     data: PatientRegister, service: PatientServiceDep
 ) -> PatientResponse:
     """Register a new patient (creates User + Patient in one call)."""
-    try:
-        patient = await service.register_patient(data)
-        return PatientResponse.model_validate(patient)
-    except EmailAlreadyExistsError:
-        raise conflict_exception("Email", data.email)
+    patient = await service.register_patient(data)
+    return PatientResponse.model_validate(patient)
 
 
 @router.get(
@@ -81,11 +57,6 @@ async def list_patients(
     )
 
 
-# =============================================================================
-# Resource Endpoints: /patients/{patient_id}
-# =============================================================================
-
-
 @router.get(
     "/{patient_id}",
     response_model=PatientResponse,
@@ -97,11 +68,8 @@ async def list_patients(
 )
 async def get_patient(patient_id: UUID, service: PatientServiceDep) -> PatientResponse:
     """Get a patient by ID."""
-    try:
-        patient = await service.get_patient_or_raise(patient_id)
-        return PatientResponse.model_validate(patient)
-    except PatientNotFoundError:
-        raise not_found_exception("Patient", str(patient_id))
+    patient = await service.get_patient_or_raise(patient_id)
+    return PatientResponse.model_validate(patient)
 
 
 @router.patch(
@@ -117,11 +85,8 @@ async def update_patient(
     patient_id: UUID, data: PatientUpdate, service: PatientServiceDep
 ) -> PatientResponse:
     """Update a patient's profile. Only provided fields are updated."""
-    try:
-        patient = await service.update_patient(patient_id, data)
-        return PatientResponse.model_validate(patient)
-    except PatientNotFoundError:
-        raise not_found_exception("Patient", str(patient_id))
+    patient = await service.update_patient(patient_id, data)
+    return PatientResponse.model_validate(patient)
 
 
 @router.delete(
@@ -137,8 +102,5 @@ async def delete_patient(
     patient_id: UUID, service: PatientServiceDep
 ) -> PatientResponse:
     """Soft-delete a patient (data retained for audit)."""
-    try:
-        patient = await service.delete_patient(patient_id)
-        return PatientResponse.model_validate(patient)
-    except PatientNotFoundError:
-        raise not_found_exception("Patient", str(patient_id))
+    patient = await service.delete_patient(patient_id)
+    return PatientResponse.model_validate(patient)
