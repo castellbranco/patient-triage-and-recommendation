@@ -32,10 +32,10 @@ class PaginationParams:
 Pagination = Annotated[PaginationParams, Depends()]
 
 
-UserServiceDep = Annotated[UserService, FromDishka()]
-PatientServiceDep = Annotated[PatientService, FromDishka()]
-ProviderServiceDep = Annotated[ProviderService, FromDishka()]
-AppointmentServiceDep = Annotated[AppointmentService, FromDishka()]
+UserServiceDep = FromDishka[UserService]
+PatientServiceDep = FromDishka[PatientService]
+ProviderServiceDep = FromDishka[ProviderService]
+AppointmentServiceDep = FromDishka[AppointmentService]
 
 
 def not_found_exception(resource: str, identifier: str) -> HTTPException:

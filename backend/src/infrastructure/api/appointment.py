@@ -4,6 +4,7 @@ Appointment API Module - Routes for appointment endpoints
 
 from uuid import UUID
 
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, status
 
 from infrastructure.api.utils import Pagination, AppointmentServiceDep
@@ -15,7 +16,7 @@ from infrastructure.database.schemas.appointment import (
 )
 
 
-router = APIRouter(prefix="/appointments", tags=["Appointments"])
+router = APIRouter(prefix="/appointments", tags=["Appointments"], route_class=DishkaRoute)
 
 
 @router.post(

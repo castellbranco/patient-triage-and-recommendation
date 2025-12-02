@@ -4,6 +4,7 @@ User API Module - Routes for user endpoints
 
 from uuid import UUID
 
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Query
 
 from infrastructure.api.utils import Pagination, UserServiceDep
@@ -15,7 +16,7 @@ from infrastructure.database.schemas.user import (
 )
 
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRoute)
 
 
 @router.get(

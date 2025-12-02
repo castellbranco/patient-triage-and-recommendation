@@ -4,6 +4,7 @@ Patient API Module - Routes for patient endpoints
 
 from uuid import UUID
 
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, status
 
 from infrastructure.api.utils import Pagination, PatientServiceDep
@@ -15,7 +16,7 @@ from infrastructure.database.schemas.patient import (
 )
 
 
-router = APIRouter(prefix="/patients", tags=["Patients"])
+router = APIRouter(prefix="/patients", tags=["Patients"], route_class=DishkaRoute)
 
 
 @router.post(

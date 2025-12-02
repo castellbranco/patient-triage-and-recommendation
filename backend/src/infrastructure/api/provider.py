@@ -4,6 +4,7 @@ Provider API Module - Routes for provider endpoints
 
 from uuid import UUID
 
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Query, status
 
 from infrastructure.api.utils import Pagination, ProviderServiceDep
@@ -15,7 +16,7 @@ from infrastructure.database.schemas.provider import (
 )
 
 
-router = APIRouter(prefix="/providers", tags=["Providers"])
+router = APIRouter(prefix="/providers", tags=["Providers"], route_class=DishkaRoute)
 
 
 @router.post(
