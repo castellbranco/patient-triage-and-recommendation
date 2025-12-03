@@ -5,7 +5,7 @@ User Service Module
 from typing import Optional, List
 from uuid import UUID
 
-from passlib.context import CryptContext
+import bcrypt
 
 from infrastructure.database.models.user import User
 from infrastructure.database.schemas.user import UserCreate, UserUpdate
@@ -13,7 +13,19 @@ from infrastructure.repo.user import UserRepository
 from services.errors import EmailAlreadyExistsError, UserNotFoundError
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    # Truncate to 72 bytes (bcrypt limit)
+    password_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    password_bytes = plain_password.encode("utf-8")[:72]
+    hashed_bytes = hashed_password.encode("utf-8")
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
 class UserService:
@@ -25,11 +37,11 @@ class UserService:
         if await self.repository.email_exists(data.email):
             raise EmailAlreadyExistsError(data.email)
 
-        hashed_password = pwd_context.hash(data.password)
+        hashed = hash_password(data.password)
 
         user = User(
             email=data.email,
-            hashed_password=hashed_password,
+            hashed_password=hashed,
             first_name=data.first_name,
             last_name=data.last_name,
             phone_number=data.phone_number,
@@ -70,7 +82,7 @@ class UserService:
             user.phone_number = data.phone_number
 
         if data.password is not None:
-            user.hashed_password = pwd_context.hash(data.password)
+            user.hashed_password = hash_password(data.password)
 
         return await self.repository.update(user)
 
@@ -87,14 +99,11 @@ class UserService:
     async def get_users_by_role(self, role: str) -> List[User]:
         return await self.repository.get_by_role(role)
 
-    async def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
-
     async def authenticate(self, email: str, password: str) -> Optional[User]:
         user = await self.repository.get_by_email(email)
         if not user:
             return None
-        if not await self.verify_password(password, user.hashed_password):
+        if not verify_password(password, user.hashed_password):
             return None
         if not user.is_active:
             return None

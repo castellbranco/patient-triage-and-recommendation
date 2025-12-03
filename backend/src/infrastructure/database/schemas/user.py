@@ -24,8 +24,17 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """
     Schema for user registration (POST /users).
+    Used internally by Patient/Provider registration.
     """
     password: str = Field(..., min_length=8, max_length=128, description="Plain text password (will be hashed server-side)")
+
+
+class AdminUserCreate(UserCreate):
+    """
+    Schema for admin user registration (POST /users/register).
+    Only admins can create other admin users.
+    """
+    role: UserRole = Field("admin", description="User role (admin only for direct registration)")
 
 
 class UserUpdate(BaseModel):

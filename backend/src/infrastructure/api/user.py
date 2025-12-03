@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 
 from infrastructure.api.utils import Pagination, UserServiceDep
 from infrastructure.database.schemas.user import (
+    AdminUserCreate,
     UserListResponse,
     UserResponse,
     UserRole,
@@ -17,6 +18,24 @@ from infrastructure.database.schemas.user import (
 
 
 router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRoute)
+
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=201,
+    summary="Register admin user",
+    responses={
+        201: {"description": "Admin user created"},
+        409: {"description": "Email already registered"},
+    },
+)
+async def register_admin(
+    data: AdminUserCreate, service: UserServiceDep
+) -> UserResponse:
+    """Register a new admin user. In production, this should be protected."""
+    user = await service.create_user(data, role=data.role)
+    return UserResponse.model_validate(user)
 
 
 @router.get(

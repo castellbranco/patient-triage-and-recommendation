@@ -57,6 +57,7 @@ dev-backend-prod = {cmd = "uvicorn main:app --host 0.0.0.0 --port 8000 --workers
 dev-frontend = "streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0"
 
 # Database commands 
+init-db = {cmd = "python scripts/init_db.py", working_dir = "backend"}
 migrate = {cmd = "alembic upgrade head", working_dir = "backend"}
 migrate-create = {cmd = "alembic revision --autogenerate -m", working_dir = "backend"}
 migrate-down = {cmd = "alembic downgrade -1", working_dir = "backend"}
@@ -96,6 +97,10 @@ docker-down = "docker-compose down"
 docker-logs = "docker-compose logs -f"
 docker-build = "docker-compose build"
 docker-clean = "docker-compose down -v"
+
+# Setup commands
+setup = {shell = "bash scripts/setup.sh"}
+reset-db = {shell = "docker exec triage-postgres psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'triage_db' AND pid <> pg_backend_pid();\" && docker exec triage-postgres psql -U postgres -c \"DROP DATABASE IF EXISTS triage_db;\" && docker exec triage-postgres psql -U postgres -c \"CREATE DATABASE triage_db;\" && pdm run migrate"}
 
 # Combined development (requires docker-compose)
 dev-all = "docker-compose up"

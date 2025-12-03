@@ -33,7 +33,7 @@ class InfrastructureProvider(Provider):
         """Get database URL from environment."""
         return os.getenv(
             "DATABASE_URL",
-            "postgresql+asyncpg://postgres:postgres@localhost:5432/patient_triage"
+            "postgresql+asyncpg://postgres:postgres@localhost:5432/triage_db"
         )
 
     @provide(scope=Scope.APP)
