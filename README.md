@@ -113,9 +113,6 @@ patient-triage-and-recommendation/
 
    # Install all dependencies (backend + frontend)
    pdm install
-
-   # Or install only production dependencies
-   pdm install --prod
    ```
 
 2. **Copy and configure environment**
@@ -124,24 +121,12 @@ patient-triage-and-recommendation/
    # Edit .env with your local configuration
    ```
 
-3. **Start PostgreSQL** (you'll need a local PostgreSQL instance)
+3. **Run the setup script** (starts PostgreSQL, creates DB, runs migrations)
    ```bash
-   # Using Docker for just PostgreSQL
-   docker run -d \
-     --name triage-postgres \
-     -e POSTGRES_USER=postgres \
-     -e POSTGRES_PASSWORD=postgres \
-     -e POSTGRES_DB=triage_db \
-     -p 5432:5432 \
-     postgres:15-alpine
+   pdm run setup
    ```
 
-4. **Run database migrations**
-   ```bash
-   pdm run migrate
-   ```
-
-5. **Start backend and frontend** (in separate terminals)
+4. **Start backend and frontend** (in separate terminals)
    ```bash
    # Terminal 1: Start backend
    pdm run dev-backend
@@ -173,10 +158,12 @@ pdm run dev-all              # Start all services with docker-compose
 #### Database Operations
 
 ```bash
+pdm run init-db              # Create database (run once on first setup)
 pdm run migrate              # Apply all pending migrations
 pdm run migrate-create "message"  # Create new migration
 pdm run migrate-down         # Rollback one migration
 pdm run migrate-history      # View migration history
+pdm run db-shell             # Open psql shell to database
 ```
 
 #### Code Quality

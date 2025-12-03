@@ -100,7 +100,6 @@ docker-clean = "docker-compose down -v"
 
 # Setup commands
 setup = {shell = "bash scripts/setup.sh"}
-reset-db = {shell = "docker exec triage-postgres psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'triage_db' AND pid <> pg_backend_pid();\" && docker exec triage-postgres psql -U postgres -c \"DROP DATABASE IF EXISTS triage_db;\" && docker exec triage-postgres psql -U postgres -c \"CREATE DATABASE triage_db;\" && pdm run migrate"}
 
 # Combined development (requires docker-compose)
 dev-all = "docker-compose up"
