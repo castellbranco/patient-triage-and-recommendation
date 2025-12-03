@@ -14,7 +14,7 @@ class TestLoginRequest:
     def test_valid_login_request(self):
         """Valid email and password should work."""
         data = LoginRequest(email="test@example.com", password="password123")
-        
+
         assert data.email == "test@example.com"
         assert data.password == "password123"
 
@@ -48,7 +48,7 @@ class TestTokenResponse:
             access_token="access.token.here",
             refresh_token="refresh.token.here",
         )
-        
+
         assert data.access_token == "access.token.here"
         assert data.refresh_token == "refresh.token.here"
         assert data.token_type == "bearer"
@@ -60,7 +60,7 @@ class TestTokenResponse:
             refresh_token="refresh",
             token_type="custom",
         )
-        
+
         assert data.token_type == "custom"
 
     def test_missing_access_token_rejected(self):

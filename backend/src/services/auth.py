@@ -43,43 +43,43 @@ class AuthService:
         """
         Authenticate user and return access/refresh tokens.
         """
-        
+
         user = await self.user_service.get_user_by_email(email)
-        
+
         if not user:
             raise InvalidCredentialsError()
-        
+
         if not verify_password(password, user.hashed_password):
             raise InvalidCredentialsError()
-        
+
         if not user.is_active:
             raise UserNotActiveError(user.email)
-        
+
         # Create token subject with user info
         subject = {
             "user_id": str(user.id),
             "email": user.email,
             "role": user.role,
         }
-        
+
         access_token = access_security.create_access_token(subject=subject)
         refresh_token = refresh_security.create_refresh_token(subject=subject)
-        
+
         return access_token, refresh_token
 
     def refresh_tokens(self, subject: dict) -> tuple[str, str]:
         """
         Create new access/refresh tokens from existing subject.
         """
-        
+
         access_token = access_security.create_access_token(subject=subject)
         refresh_token = refresh_security.create_refresh_token(subject=subject)
-        
+
         return access_token, refresh_token
 
     async def get_user_from_token(self, user_id: str) -> User:
         """
         Get user from token subject.
         """
-        
+
         return await self.user_service.get_user_or_raise(UUID(user_id))

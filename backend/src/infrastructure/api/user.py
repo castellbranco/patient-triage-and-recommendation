@@ -30,9 +30,7 @@ router = APIRouter(prefix="/users", tags=["Users"], route_class=DishkaRoute)
         409: {"description": "Email already registered"},
     },
 )
-async def register_admin(
-    data: AdminUserCreate, service: UserServiceDep
-) -> UserResponse:
+async def register_admin(data: AdminUserCreate, service: UserServiceDep) -> UserResponse:
     """Register a new admin user. In production, this should be protected."""
     user = await service.create_user(data, role=data.role)
     return UserResponse.model_validate(user)
@@ -91,9 +89,7 @@ async def get_user(user_id: UUID, service: UserServiceDep) -> UserResponse:
         409: {"description": "Email already registered"},
     },
 )
-async def update_user(
-    user_id: UUID, data: UserUpdate, service: UserServiceDep
-) -> UserResponse:
+async def update_user(user_id: UUID, data: UserUpdate, service: UserServiceDep) -> UserResponse:
     """Update a user's profile. Only provided fields are updated."""
     user = await service.update_user(user_id, data)
     return UserResponse.model_validate(user)

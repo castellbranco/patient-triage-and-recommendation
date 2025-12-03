@@ -48,9 +48,7 @@ async def list_appointments(
     service: AppointmentServiceDep, pagination: Pagination
 ) -> AppointmentListResponse:
     """List all appointments with pagination."""
-    appointments = await service.list_appointments(
-        skip=pagination.skip, limit=pagination.limit
-    )
+    appointments = await service.list_appointments(skip=pagination.skip, limit=pagination.limit)
     total = await service.count_appointments()
 
     return AppointmentListResponse(

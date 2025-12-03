@@ -18,8 +18,7 @@ from infrastructure.database.models.appointment import Appointment
 from infrastructure.database.models.provider import Provider
 
 TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/triage_test_db"
+    "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/triage_test_db"
 )
 
 
@@ -50,14 +49,11 @@ async def db_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, N
         await connection.begin()
 
         session_factory = async_sessionmaker(
-            bind=connection,
-            expire_on_commit=False,
-            class_=AsyncSession
+            bind=connection, expire_on_commit=False, class_=AsyncSession
         )
 
         async with session_factory() as session:
             yield session
-
 
 
 @pytest.fixture
@@ -65,12 +61,13 @@ def user_factory():
     """
     Factory for creating test users with different roles.
     """
+
     def _create_user(
         role: str = "patient",
         email: str = None,
         is_active: bool = True,
         is_verified: bool = True,
-        **kwargs
+        **kwargs,
     ):
         if email is None:
             email = f"test_{uuid.uuid4().hex[:8]}@example.com"
@@ -96,11 +93,8 @@ def patient_factory():
     """
     Factory for creating test patients.
     """
-    def _create_patient(
-        user_id: uuid.UUID = None,
-        date_of_birth: date = None,
-        **kwargs
-    ):
+
+    def _create_patient(user_id: uuid.UUID = None, date_of_birth: date = None, **kwargs):
         if date_of_birth is None:
             date_of_birth = date(1990, 1, 1)
 
@@ -125,11 +119,12 @@ def patient_factory():
 @pytest.fixture
 def provider_factory():
     """Factory for creating test providers."""
+
     def _create_provider(
         user_id: uuid.UUID = None,
         specialty: str = "General Practice",
         license_number: str = None,
-        **kwargs
+        **kwargs,
     ):
         if license_number is None:
             license_number = f"LIC-{uuid.uuid4().hex[:8].upper()}"
@@ -154,11 +149,12 @@ def provider_factory():
 @pytest.fixture
 def appointment_factory():
     """Factory for creating test appointments."""
+
     def _create_appointment(
         patient_id: uuid.UUID = None,
         provider_id: uuid.UUID = None,
         appointment_datetime: datetime = None,
-        **kwargs
+        **kwargs,
     ):
         if appointment_datetime is None:
             appointment_datetime = datetime.now() + timedelta(days=1)

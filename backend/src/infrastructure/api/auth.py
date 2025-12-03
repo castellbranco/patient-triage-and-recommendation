@@ -31,11 +31,11 @@ router = APIRouter(prefix="/auth", tags=["Authentication"], route_class=DishkaRo
 async def login(data: LoginRequest, service: AuthServiceDep) -> TokenResponse:
     """
     Authenticate with email and password.
-    
+
     Returns access and refresh JWT tokens.
     """
     access_token, refresh_token = await service.login(data.email, data.password)
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -60,7 +60,7 @@ async def refresh_tokens(
     Get new access/refresh tokens using a valid refresh token.
     """
     access_token, refresh_token = service.refresh_tokens(credentials.subject)
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,

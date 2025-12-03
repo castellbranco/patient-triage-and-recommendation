@@ -79,9 +79,7 @@ async def list_providers(
         404: {"description": "Provider not found"},
     },
 )
-async def get_provider(
-    provider_id: UUID, service: ProviderServiceDep
-) -> ProviderResponse:
+async def get_provider(provider_id: UUID, service: ProviderServiceDep) -> ProviderResponse:
     """Get a provider by ID."""
     provider = await service.get_provider_or_raise(provider_id)
     return ProviderResponse.model_validate(provider)
@@ -114,9 +112,7 @@ async def update_provider(
         404: {"description": "Provider not found"},
     },
 )
-async def delete_provider(
-    provider_id: UUID, service: ProviderServiceDep
-) -> ProviderResponse:
+async def delete_provider(provider_id: UUID, service: ProviderServiceDep) -> ProviderResponse:
     """Soft-delete a provider (data retained for audit)."""
     provider = await service.delete_provider(provider_id)
     return ProviderResponse.model_validate(provider)

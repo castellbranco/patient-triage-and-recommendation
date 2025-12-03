@@ -7,6 +7,7 @@ This page will allow:
 - Canceling/rescheduling appointments
 - Filtering by date, patient, specialty
 """
+
 import streamlit as st
 from datetime import datetime, timedelta
 

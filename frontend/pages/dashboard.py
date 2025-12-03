@@ -7,6 +7,7 @@ This page will display:
 - Recent triage results
 - System health metrics
 """
+
 import streamlit as st
 
 st.set_page_config(
@@ -37,4 +38,6 @@ with col4:
 
 st.markdown("---")
 st.markdown("## Recent Activity")
-st.info("Recent activity will be displayed here once authentication and patient management are implemented")
+st.info(
+    "Recent activity will be displayed here once authentication and patient management are implemented"
+)

@@ -18,6 +18,7 @@ class ProviderBase(BaseModel):
 
 class ProviderRegister(ProviderBase):
     """Used when registering a new provider (creates User + Provider together)"""
+
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     first_name: str = Field(..., min_length=1, max_length=100)
@@ -30,6 +31,7 @@ class ProviderRegister(ProviderBase):
 
 class ProviderCreate(ProviderBase):
     """Used internally when user_id already exists"""
+
     user_id: UUID
     languages_spoken: list[str] = Field(default_factory=list)
     accepted_insurances: list[str] = Field(default_factory=list)

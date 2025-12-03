@@ -13,6 +13,7 @@ from infrastructure.database.models.patient import Patient
 @pytest.fixture
 async def user_with_patient(db_session, user_factory, patient_factory):
     """Helper fixture to create user + patient."""
+
     async def _create(email, **patient_kwargs):
         user = user_factory(email=email, role="patient")
         db_session.add(user)
@@ -22,6 +23,7 @@ async def user_with_patient(db_session, user_factory, patient_factory):
         await db_session.commit()
         await db_session.refresh(patient)
         return patient
+
     return _create
 
 
@@ -29,7 +31,7 @@ async def user_with_patient(db_session, user_factory, patient_factory):
 async def test_create_patient_success(user_with_patient):
     """Test successful creation of a Patient."""
     patient = await user_with_patient("patient@example.com", gender="male")
-    
+
     assert patient.id is not None
     assert patient.gender == "male"
 
@@ -38,7 +40,7 @@ async def test_create_patient_success(user_with_patient):
 async def test_read_patient_by_user_id(db_session, user_with_patient):
     """Test querying a patient by user_id."""
     patient = await user_with_patient("query@example.com")
-    
+
     result = await db_session.execute(select(Patient).where(Patient.user_id == patient.user_id))
     assert result.scalar_one_or_none().id == patient.id
 
@@ -54,7 +56,7 @@ async def test_patient_with_blood_type(user_with_patient):
 async def test_patient_with_address(user_with_patient):
     """Test patient with address."""
     patient = await user_with_patient("addr@example.com", address_line1="123 Main St", city="NYC")
-    
+
     assert patient.address_line1 == "123 Main St"
     assert patient.city == "NYC"
 
@@ -97,10 +99,10 @@ async def test_patient_unique_user_id_constraint(db_session, user_factory, patie
     user = user_factory(email="unique@example.com", role="patient")
     db_session.add(user)
     await db_session.commit()
-    
+
     db_session.add(patient_factory(user_id=user.id))
     await db_session.commit()
-    
+
     db_session.add(patient_factory(user_id=user.id))
     with pytest.raises(IntegrityError):
         await db_session.commit()
@@ -110,12 +112,12 @@ async def test_patient_unique_user_id_constraint(db_session, user_factory, patie
 async def test_update_patient(db_session, user_with_patient):
     """Test updating patient fields."""
     patient = await user_with_patient("update@example.com", city="Old City")
-    
+
     patient.city = "New City"
     patient.allergies = [{"name": "peanuts", "severity": "severe"}]
     await db_session.commit()
     await db_session.refresh(patient)
-    
+
     assert patient.city == "New City"
     assert patient.allergies[0]["name"] == "peanuts"
 
@@ -139,6 +141,6 @@ async def test_filter_patients_by_gender(db_session, user_with_patient):
     """Test filtering by gender."""
     await user_with_patient("m@example.com", gender="male")
     await user_with_patient("f@example.com", gender="female")
-    
+
     result = await db_session.execute(select(Patient).where(Patient.gender == "male"))
     assert len(result.scalars().all()) == 1

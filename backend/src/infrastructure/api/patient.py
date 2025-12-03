@@ -29,9 +29,7 @@ router = APIRouter(prefix="/patients", tags=["Patients"], route_class=DishkaRout
         409: {"description": "Email already registered"},
     },
 )
-async def register_patient(
-    data: PatientRegister, service: PatientServiceDep
-) -> PatientResponse:
+async def register_patient(data: PatientRegister, service: PatientServiceDep) -> PatientResponse:
     """Register a new patient (creates User + Patient in one call)."""
     patient = await service.register_patient(data)
     return PatientResponse.model_validate(patient)
@@ -43,9 +41,7 @@ async def register_patient(
     summary="List patients",
     responses={200: {"description": "Patients retrieved"}},
 )
-async def list_patients(
-    service: PatientServiceDep, pagination: Pagination
-) -> PatientListResponse:
+async def list_patients(service: PatientServiceDep, pagination: Pagination) -> PatientListResponse:
     """List all patients with pagination."""
     patients = await service.list_patients(skip=pagination.skip, limit=pagination.limit)
     total = await service.count_patients()
@@ -99,9 +95,7 @@ async def update_patient(
         404: {"description": "Patient not found"},
     },
 )
-async def delete_patient(
-    patient_id: UUID, service: PatientServiceDep
-) -> PatientResponse:
+async def delete_patient(patient_id: UUID, service: PatientServiceDep) -> PatientResponse:
     """Soft-delete a patient (data retained for audit)."""
     patient = await service.delete_patient(patient_id)
     return PatientResponse.model_validate(patient)

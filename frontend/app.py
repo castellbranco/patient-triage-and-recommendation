@@ -3,6 +3,7 @@ Patient Triage & Management System - Streamlit Frontend
 
 Main entry point for the Streamlit application.
 """
+
 import os
 from pathlib import Path
 
@@ -22,7 +23,8 @@ st.set_page_config(
 )
 
 # Custom CSS
-st.markdown("""
+st.markdown(
+    """
 <style>
     .main-header {
         font-size: 2.5rem;
@@ -44,15 +46,24 @@ st.markdown("""
         margin: 1rem 0;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Main page
-st.markdown('<h1 class="main-header">🏥 Patient Triage & Management System</h1>', unsafe_allow_html=True)
-st.markdown('<p class="welcome-text">Welcome to the automated patient triage system</p>', unsafe_allow_html=True)
+st.markdown(
+    '<h1 class="main-header">🏥 Patient Triage & Management System</h1>', unsafe_allow_html=True
+)
+st.markdown(
+    '<p class="welcome-text">Welcome to the automated patient triage system</p>',
+    unsafe_allow_html=True,
+)
 
 # Sidebar
 with st.sidebar:
-    st.image("https://via.placeholder.com/200x100.png?text=Healthcare+Logo", use_container_width=True)
+    st.image(
+        "https://via.placeholder.com/200x100.png?text=Healthcare+Logo", use_container_width=True
+    )
     st.markdown("---")
     st.markdown("### Navigation")
     st.info("Use the pages menu to navigate through the application")
@@ -72,27 +83,28 @@ with col1:
     st.markdown("### 📋 Patient Registration")
     st.markdown("Register new patients and manage patient information")
     st.markdown("**Status**: Coming in Phase 1")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
     st.markdown('<div class="feature-box">', unsafe_allow_html=True)
     st.markdown("### 🩺 Symptom Triage")
     st.markdown("Automated triage based on patient symptoms and vital signs")
     st.markdown("**Status**: Coming in Phase 2")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with col3:
     st.markdown('<div class="feature-box">', unsafe_allow_html=True)
     st.markdown("### 📅 Appointments")
     st.markdown("Schedule and manage patient appointments")
     st.markdown("**Status**: Coming in Phase 3")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Information section
 st.markdown("---")
 st.markdown("## 🚀 About This System")
 
-st.markdown("""
+st.markdown(
+    """
 This Patient Triage & Management System demonstrates:
 
 - **Symptom Standardization**: Integration with NLM Medical Conditions API for ICD-10 code validation
@@ -116,11 +128,12 @@ The system is being built progressively through tagged releases:
 **Backend**: FastAPI • PostgreSQL • SQLAlchemy • Alembic • Dishka
 **Frontend**: Streamlit (current) • React + TypeScript (planned)
 **Infrastructure**: Docker • GitHub Actions • Terraform • GCP/AWS
-""")
+"""
+)
 
 # Footer
 st.markdown("---")
 st.markdown(
     '<p style="text-align: center; color: #888;">Built with FastAPI, Streamlit, and Clean Architecture principles</p>',
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )

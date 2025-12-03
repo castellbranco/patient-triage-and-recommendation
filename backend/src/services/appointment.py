@@ -66,8 +66,7 @@ class AppointmentService:
         # Check for scheduling conflicts
         if await self.repository.check_conflict(data.provider_id, data.appointment_datetime):
             raise AppointmentConflictError(
-                str(data.provider_id),
-                data.appointment_datetime.isoformat()
+                str(data.provider_id), data.appointment_datetime.isoformat()
             )
 
         appointment = Appointment(
@@ -111,8 +110,7 @@ class AppointmentService:
                     appointment.provider_id, data.appointment_datetime
                 ):
                     raise AppointmentConflictError(
-                        str(appointment.provider_id),
-                        data.appointment_datetime.isoformat()
+                        str(appointment.provider_id), data.appointment_datetime.isoformat()
                     )
                 appointment.appointment_datetime = data.appointment_datetime
 
@@ -144,8 +142,7 @@ class AppointmentService:
 
         appointment.status = "cancelled"
         appointment.canceled_by_and_why = CancellationSchema(
-            canceled_by=canceled_by,
-            reason=reason
+            canceled_by=canceled_by, reason=reason
         ).model_dump()
 
         return await self.repository.update(appointment)
@@ -199,12 +196,8 @@ class AppointmentService:
     async def list_upcoming_for_provider(self, provider_id: UUID):
         return await self.repository.get_upcoming_for_provider(provider_id)
 
-    async def get_provider_schedule(
-        self, provider_id: UUID, start: datetime, end: datetime
-    ):
-        return await self.repository.get_provider_appointments_in_range(
-            provider_id, start, end
-        )
+    async def get_provider_schedule(self, provider_id: UUID, start: datetime, end: datetime):
+        return await self.repository.get_provider_appointments_in_range(provider_id, start, end)
 
     async def count_appointments(self):
         return await self.repository.count()

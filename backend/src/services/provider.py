@@ -5,11 +5,19 @@ Provider Service Module
 from uuid import UUID
 
 from infrastructure.database.models.provider import Provider
-from infrastructure.database.schemas.provider import ProviderCreate, ProviderRegister, ProviderUpdate
+from infrastructure.database.schemas.provider import (
+    ProviderCreate,
+    ProviderRegister,
+    ProviderUpdate,
+)
 from infrastructure.database.schemas.user import UserCreate
 from infrastructure.repo.provider import ProviderRepository
 from services.user import UserService
-from services.errors import ProviderNotFoundError, ProviderAlreadyExistsError, LicenseAlreadyExistsError
+from services.errors import (
+    ProviderNotFoundError,
+    ProviderAlreadyExistsError,
+    LicenseAlreadyExistsError,
+)
 
 
 class ProviderService:

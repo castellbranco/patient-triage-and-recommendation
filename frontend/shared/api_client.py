@@ -7,6 +7,7 @@ Handles:
 - Error handling and retries
 - Response parsing
 """
+
 import os
 from typing import Any, Dict, Optional
 

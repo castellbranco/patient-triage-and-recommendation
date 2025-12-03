@@ -16,7 +16,7 @@ async def setup_patient_provider(db_session, user_factory, patient_factory, prov
     u_d = user_factory(email="provider@example.com", role="provider")
     db_session.add_all([u_p, u_d])
     await db_session.commit()
-    
+
     patient = patient_factory(user_id=u_p.id)
     provider = provider_factory(user_id=u_d.id)
     db_session.add_all([patient, provider])
@@ -27,6 +27,7 @@ async def setup_patient_provider(db_session, user_factory, patient_factory, prov
 @pytest.fixture
 async def create_appt(db_session, appointment_factory):
     """Helper to create appointments."""
+
     async def _create(patient_id, provider_id, **kwargs):
         kwargs.setdefault("appointment_datetime", datetime.now() + timedelta(days=1))
         appt = appointment_factory(patient_id=patient_id, provider_id=provider_id, **kwargs)
@@ -34,6 +35,7 @@ async def create_appt(db_session, appointment_factory):
         await db_session.commit()
         await db_session.refresh(appt)
         return appt
+
     return _create
 
 
@@ -42,7 +44,7 @@ async def test_create_appointment_success(setup_patient_provider, create_appt):
     """Test successful creation of an Appointment."""
     patient, provider = setup_patient_provider
     appt = await create_appt(patient.id, provider.id, duration=30)
-    
+
     assert appt.id is not None
     assert appt.patient_id == patient.id
     assert appt.duration == 30
@@ -103,7 +105,7 @@ async def test_update_appointment_status(db_session, setup_patient_provider, cre
     """Test updating appointment status."""
     patient, provider = setup_patient_provider
     appt = await create_appt(patient.id, provider.id)
-    
+
     appt.status = "confirmed"
     await db_session.commit()
     await db_session.refresh(appt)
@@ -115,7 +117,7 @@ async def test_appointment_relationships(setup_patient_provider, create_appt):
     """Test appointment relationships."""
     patient, provider = setup_patient_provider
     appt = await create_appt(patient.id, provider.id)
-    
+
     assert appt.patient.id == patient.id
     assert appt.provider.id == provider.id
 
@@ -132,10 +134,10 @@ async def test_appointment_repr(setup_patient_provider, create_appt):
 async def test_filter_appointments_by_status(db_session, setup_patient_provider, create_appt):
     """Test filtering by status."""
     patient, provider = setup_patient_provider
-    
+
     t1, t2 = datetime.now() + timedelta(days=1), datetime.now() + timedelta(days=2)
     await create_appt(patient.id, provider.id, appointment_datetime=t1, status="scheduled")
     await create_appt(patient.id, provider.id, appointment_datetime=t2, status="confirmed")
-    
+
     result = await db_session.execute(select(Appointment).where(Appointment.status == "scheduled"))
     assert len(result.scalars().all()) == 1

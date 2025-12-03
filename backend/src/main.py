@@ -40,12 +40,13 @@ app = FastAPI(
 container = create_container()
 setup_dishka(container, app)
 
+
 @app.exception_handler(ServiceError)
 async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
     """
     Global handler for all ServiceError exceptions.
     """
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message},
@@ -75,4 +76,3 @@ async def health_check():
 @app.get("/")
 async def root():
     return {"message": "Patient Triage & Management System API"}
-

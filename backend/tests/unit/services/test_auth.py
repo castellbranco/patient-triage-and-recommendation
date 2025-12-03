@@ -41,12 +41,12 @@ class TestAuthServiceLogin:
     async def test_login_success(self, auth_service, mock_user_service, mock_user):
         """Valid credentials should return tokens."""
         mock_user_service.get_user_by_email.return_value = mock_user
-        
+
         access_token, refresh_token = await auth_service.login(
             email="test@example.com",
             password="password123",
         )
-        
+
         assert access_token is not None
         assert refresh_token is not None
         assert isinstance(access_token, str)
@@ -56,7 +56,7 @@ class TestAuthServiceLogin:
     async def test_login_user_not_found(self, auth_service, mock_user_service):
         """Non-existent user should raise InvalidCredentialsError."""
         mock_user_service.get_user_by_email.return_value = None
-        
+
         with pytest.raises(InvalidCredentialsError):
             await auth_service.login(
                 email="nonexistent@example.com",
@@ -66,7 +66,7 @@ class TestAuthServiceLogin:
     async def test_login_wrong_password(self, auth_service, mock_user_service, mock_user):
         """Wrong password should raise InvalidCredentialsError."""
         mock_user_service.get_user_by_email.return_value = mock_user
-        
+
         with pytest.raises(InvalidCredentialsError):
             await auth_service.login(
                 email="test@example.com",
@@ -77,7 +77,7 @@ class TestAuthServiceLogin:
         """Inactive user should raise UserNotActiveError."""
         mock_user.is_active = False
         mock_user_service.get_user_by_email.return_value = mock_user
-        
+
         with pytest.raises(UserNotActiveError):
             await auth_service.login(
                 email="test@example.com",
@@ -95,9 +95,9 @@ class TestAuthServiceRefresh:
             "email": "test@example.com",
             "role": "patient",
         }
-        
+
         access_token, refresh_token = auth_service.refresh_tokens(subject)
-        
+
         assert access_token is not None
         assert refresh_token is not None
         assert isinstance(access_token, str)
@@ -111,8 +111,8 @@ class TestAuthServiceGetUser:
         """Valid user_id should return user."""
         mock_user_service.get_user_or_raise.return_value = mock_user
         user_id = str(mock_user.id)
-        
+
         result = await auth_service.get_user_from_token(user_id)
-        
+
         assert result == mock_user
         mock_user_service.get_user_or_raise.assert_called_once()

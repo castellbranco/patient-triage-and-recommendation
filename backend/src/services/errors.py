@@ -7,15 +7,17 @@ from fastapi import status
 
 class ServiceError(Exception):
     """Base class for all service-layer errors with HTTP status mapping."""
-    
+
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
-    
+
     def __init__(self, message: str = "Service error occurred"):
         self.message = message
         super().__init__(self.message)
 
+
 class NotFoundError(ServiceError):
     """Base class for all 'not found' errors."""
+
     status_code = status.HTTP_404_NOT_FOUND
 
 
@@ -38,8 +40,10 @@ class AppointmentNotFoundError(NotFoundError):
     def __init__(self, identifier: str):
         super().__init__(f"Appointment {identifier} not found")
 
+
 class ConflictError(ServiceError):
     """Base class for all conflict/duplicate errors."""
+
     status_code = status.HTTP_409_CONFLICT
 
 
@@ -70,6 +74,7 @@ class AppointmentConflictError(ConflictError):
 
 class BadRequestError(ServiceError):
     """Base class for all validation/bad request errors."""
+
     status_code = status.HTTP_400_BAD_REQUEST
 
 
@@ -90,6 +95,7 @@ class ProviderNotAcceptingPatientsError(BadRequestError):
 
 class UnauthorizedError(ServiceError):
     """Base class for authentication errors."""
+
     status_code = status.HTTP_401_UNAUTHORIZED
 
 
@@ -101,6 +107,7 @@ class InvalidCredentialsError(UnauthorizedError):
 class UserNotActiveError(UnauthorizedError):
     def __init__(self, identifier: str):
         super().__init__(f"User {identifier} is not active")
+
 
 UserServiceError = ServiceError
 PatientServiceError = ServiceError

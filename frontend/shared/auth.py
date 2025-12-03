@@ -7,6 +7,7 @@ Handles:
 - Token persistence
 - Protected page routing
 """
+
 from typing import Optional
 
 import streamlit as st

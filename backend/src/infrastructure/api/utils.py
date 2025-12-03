@@ -70,7 +70,9 @@ def bad_request_exception(message: str) -> HTTPException:
     )
 
 
-def forbidden_exception(message: str = "You don't have permission to perform this action") -> HTTPException:
+def forbidden_exception(
+    message: str = "You don't have permission to perform this action",
+) -> HTTPException:
     """
     Create a 403 Forbidden exception.
     """

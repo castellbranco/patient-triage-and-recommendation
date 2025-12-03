@@ -7,6 +7,7 @@ This page will allow users to:
 - Manage notification preferences
 - View activity history
 """
+
 import streamlit as st
 
 st.set_page_config(

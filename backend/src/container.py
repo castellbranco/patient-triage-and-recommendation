@@ -33,8 +33,7 @@ class InfrastructureProvider(Provider):
     def get_database_url(self) -> str:
         """Get database URL from environment."""
         return os.getenv(
-            "DATABASE_URL",
-            "postgresql+asyncpg://postgres:postgres@localhost:5432/triage_db"
+            "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/triage_db"
         )
 
     @provide(scope=Scope.APP)
@@ -66,7 +65,6 @@ class InfrastructureProvider(Provider):
             except Exception:
                 await session.rollback()
                 raise
-
 
     @provide(scope=Scope.REQUEST)
     def get_user_repository(self, session: AsyncSession) -> UserRepository:

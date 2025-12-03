@@ -127,4 +127,3 @@ class PatientService:
 
     async def count_patients(self):
         return await self.repository.count()
-

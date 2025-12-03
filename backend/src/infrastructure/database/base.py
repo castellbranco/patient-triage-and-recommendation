@@ -1,5 +1,5 @@
 """
-    DataBase Configuration
+DataBase Configuration
 """
 
 import uuid
@@ -16,9 +16,12 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class Base(AsyncAttrs, DeclarativeBase):
     """Base class for all models"""
+
     pass
+
 
 class UUIDMixin:
     """UUID Mixin for models"""
@@ -30,7 +33,8 @@ class UUIDMixin:
         server_default=func.gen_random_uuid(),
         nullable=False,
     )
-    
+
+
 class TimestampMixin:
     """Timestamp Mixin for models"""
 
@@ -46,7 +50,8 @@ class TimestampMixin:
         server_default=None,
     )
 
-class SoftDeleteMixin:  
+
+class SoftDeleteMixin:
     """Soft Delete Mixin for models"""
 
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
@@ -54,19 +59,19 @@ class SoftDeleteMixin:
         nullable=True,
         default=None,
     )
-    
-    
+
+
 def create_database_engine(database_url: str, echo: bool = False):
     """
     Create async SQLAlchemy engine for PostgreSQL.
-    
+
     Args:
         database_url: PostgreSQL connection string (postgresql+asyncpg://...)
         echo: If True, log all SQL statements (useful for debugging)
-    
+
     Returns:
         AsyncEngine instance
-    
+
     Example:
         engine = create_database_engine(
             "postgresql+asyncpg://user:pass@localhost:5432/db",
@@ -84,13 +89,13 @@ def create_database_engine(database_url: str, echo: bool = False):
 def create_session_factory(engine) -> async_sessionmaker[AsyncSession]:
     """
     Create async session factory.
-    
+
     Args:
         engine: AsyncEngine from create_database_engine()
-    
+
     Returns:
         async_sessionmaker that creates AsyncSession instances
-    
+
     Usage:
         async with session_factory() as session:
             result = await session.execute(select(User))
