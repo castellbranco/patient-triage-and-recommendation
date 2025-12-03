@@ -21,6 +21,7 @@ from services.user import UserService
 from services.patient import PatientService
 from services.provider import ProviderService
 from services.appointment import AppointmentService
+from services.auth import AuthService
 
 
 class InfrastructureProvider(Provider):
@@ -129,6 +130,11 @@ class ServiceProvider(Provider):
             patient_repository,
             provider_repository,
         )
+
+    @provide(scope=Scope.REQUEST)
+    def get_auth_service(self, user_service: UserService) -> AuthService:
+        """Create AuthService with injected UserService."""
+        return AuthService(user_service)
 
 
 def create_container():

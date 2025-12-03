@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from container import create_container
 from infrastructure.api.appointment import router as appointment_router
+from infrastructure.api.auth import router as auth_router
 from infrastructure.api.patient import router as patient_router
 from infrastructure.api.provider import router as provider_router
 from infrastructure.api.user import router as user_router
@@ -43,10 +44,8 @@ setup_dishka(container, app)
 async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
     """
     Global handler for all ServiceError exceptions.
-    
-    Converts domain errors to HTTP responses automatically.
-    No try-except needed in route handlers.
     """
+    
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message},
@@ -61,6 +60,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(patient_router, prefix="/api/v1")
 app.include_router(provider_router, prefix="/api/v1")

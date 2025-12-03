@@ -18,11 +18,11 @@ dependencies = [
     "alembic>=1.13.1",
     "pydantic[email]>=2.5.3",
     "pydantic-settings>=2.1.0",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
     "python-multipart>=0.0.6",
     "dishka>=1.2.0",
     "httpx>=0.26.0",
+    "bcrypt>=4.1.0",
+    "fastapi-jwt>=0.3.0",
 
     # Frontend dependencies
     "streamlit>=1.29.0",
@@ -73,20 +73,19 @@ format-check = "black --check backend/src/ backend/tests/ frontend/"
 typecheck = {cmd = "mypy src/", working_dir = "backend"}
 
 # Testing commands
-test = {cmd = "pytest tests/ -v --disable-warnings", working_dir = "backend"}
-test-cov = {cmd = "pytest tests/ -v --cov=src --cov-branch --disable-warnings", working_dir = "backend"}
+test = {cmd = "pytest tests/ -v", working_dir = "backend"}
+test-cov = {cmd = "pytest tests/ -v --cov=src --cov-branch", working_dir = "backend"}
 test-report = {cmd = "coverage report --omit='*/tests/*'", working_dir = "backend"}
 test-xml = {cmd = "coverage xml --omit='*/tests/*'", working_dir = "backend"}
 test-html = {cmd = "coverage html --omit='*/tests/*'", working_dir = "backend"}
 test-watch = {cmd = "pytest-watch tests/", working_dir = "backend"}
 
 # Test by layer
-test-models = {cmd = "pytest tests/unit/models/ -v --disable-warnings", working_dir = "backend"}
-test-repos = {cmd = "pytest tests/unit/repositories/ -v --disable-warnings", working_dir = "backend"}
-test-services = {cmd = "pytest tests/unit/services/ -v --disable-warnings", working_dir = "backend"}
-test-schemas = {cmd = "pytest tests/unit/schemas/ -v --disable-warnings", working_dir = "backend"}
-test-api = {cmd = "pytest tests/unit/api/ -v --disable-warnings", working_dir = "backend"}
-
+test-models = {cmd = "pytest tests/unit/models/ -v", working_dir = "backend"}
+test-repos = {cmd = "pytest tests/unit/repositories/ -v", working_dir = "backend"}
+test-services = {cmd = "pytest tests/unit/services/ -v", working_dir = "backend"}
+test-schemas = {cmd = "pytest tests/unit/schemas/ -v", working_dir = "backend"}
+test-api = {cmd = "pytest tests/unit/api/ -v", working_dir = "backend"}
 # Security commands
 security-check = "bandit -r backend/src/ -f json"
 security-deps = "safety check"

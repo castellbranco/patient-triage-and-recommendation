@@ -93,12 +93,6 @@ async def update_appointment(
 ) -> AppointmentResponse:
     """
     Update an appointment. Only provided fields are updated.
-    
-    Status transitions:
-    - scheduled → confirmed, cancelled
-    - confirmed → completed, cancelled, no_show
-    
-    To cancel, include: {"status": "cancelled", "canceled_by_and_why": {...}}
     """
     appointment = await service.update_appointment(appointment_id, data)
     return AppointmentResponse.model_validate(appointment)
