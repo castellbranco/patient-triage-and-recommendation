@@ -110,3 +110,5 @@ cython_debug/
 
 null
 .claude/
+
+PHASE_2_TRIAGE_PLAN.md
