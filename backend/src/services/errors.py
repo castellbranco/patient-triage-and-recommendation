@@ -113,3 +113,37 @@ UserServiceError = ServiceError
 PatientServiceError = ServiceError
 ProviderServiceError = ServiceError
 AppointmentServiceError = ServiceError
+
+class ExternalAPIError(ServiceError):
+    """Base class for external API failures."""
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+class NLMAPIError(ExternalAPIError):
+    """NLM API specific errors."""
+    
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        if status_code:
+            self.status_code = status_code
+
+
+class NLMAPITimeoutError(ExternalAPIError):
+    """Raised when NLM API request times out."""
+    
+    def __init__(self):
+        super().__init__("NLM API request timed out. Please try again.")
+
+
+class NLMAPIUnavailableError(ExternalAPIError):
+    """Raised when NLM API is down or unreachable."""
+    
+    def __init__(self):
+        super().__init__("NLM API is temporarily unavailable. Please try again later.")
+
+
+class InvalidSymptomError(BadRequestError):
+    """Raised when symptom cannot be validated against medical database."""
+    
+    def __init__(self, symptom: str):
+        super().__init__(f"Could not validate symptom: '{symptom}'")
