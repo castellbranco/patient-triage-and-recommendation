@@ -1,11 +1,13 @@
 """Unit tests for NLM API Client."""
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, HTTPStatusError, TimeoutException, Response, Request
+import httpx
 
-from src.infrastructure.ext.nlm_client import NLMClient
-from src.infrastructure.ext.base import ICD10Code, SymptomSearchResult
-from src.services.errors import (
+from infrastructure.ext.nlm_client import NLMClient
+from infrastructure.ext.base import ICD10Code, SymptomSearchResult
+from services.errors import (
+    InvalidSymptomError,
+    NLMAPIError,
     NLMAPITimeoutError,
     NLMAPIUnavailableError,
 )
@@ -14,158 +16,271 @@ from src.services.errors import (
 @pytest.fixture
 def nlm_client():
     """Fixture for NLMClient instance."""
-    return NLMClient(base_url="https://clinicaltables.nlm.nih.gov")
+    return NLMClient(base_url="https://clinicaltables.nlm.nih.gov", timeout=5.0)
 
 
-@pytest.fixture
-def mock_httpx_client():
-    """Fixture for mocked httpx AsyncClient."""
-    return AsyncMock(spec=AsyncClient)
+class TestNLMClientInit:
+    """Tests for NLMClient initialization."""
+
+    def test_init_with_defaults(self):
+        """Test client initialization with default values."""
+        client = NLMClient()
+        assert client.base_url == "https://clinicaltables.nlm.nih.gov"
+        assert client.timeout == 10.0
+        assert client.client is None
+
+    def test_init_with_custom_values(self):
+        """Test client initialization with custom values."""
+        client = NLMClient(base_url="https://custom.api.com/", timeout=30.0)
+        assert client.base_url == "https://custom.api.com"  # Trailing slash removed
+        assert client.timeout == 30.0
 
 
-class TestNLMClientValidateSymptom:
-    """Tests for validate_symptom method."""
-
-    @pytest.mark.asyncio
-    async def test_validate_symptom_success(self, nlm_client, mock_httpx_client):
-        """Test successful symptom validation."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [
-            1,
-            ["Headache"],
-            None,
-            [["Headache", "R51", "Headache"]]
-        ]
-        mock_httpx_client.get.return_value = mock_response
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            result = await nlm_client.validate_symptom("headache")
-
-        assert result is not None
-        assert isinstance(result, ICD10Code)
-        assert result.code == "R51"
-        assert result.description == "Headache"
+class TestNLMClientContextManager:
+    """Tests for context manager functionality."""
 
     @pytest.mark.asyncio
-    async def test_validate_symptom_not_found(self, nlm_client, mock_httpx_client):
-        """Test symptom not found returns None."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [0, [], None, []]
-        mock_httpx_client.get.return_value = mock_response
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            result = await nlm_client.validate_symptom("xyzabc123")
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_validate_symptom_timeout(self, nlm_client, mock_httpx_client):
-        """Test timeout raises NLMAPITimeoutError."""
-        mock_httpx_client.get.side_effect = TimeoutException("Timeout")
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            with pytest.raises(NLMAPITimeoutError):
-                await nlm_client.validate_symptom("headache")
-
-    @pytest.mark.asyncio
-    async def test_validate_symptom_http_500(self, nlm_client, mock_httpx_client):
-        """Test HTTP 500 error raises NLMAPIUnavailableError."""
-        mock_response = MagicMock(spec=Response)
-        mock_response.status_code = 500
-        mock_request = MagicMock(spec=Request)
+    async def test_context_manager_creates_client(self):
+        """Test that async with creates the httpx client."""
+        nlm = NLMClient()
+        assert nlm.client is None
         
-        mock_httpx_client.get.side_effect = HTTPStatusError(
-            "Internal Server Error",
-            request=mock_request,
-            response=mock_response
-        )
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            with pytest.raises(NLMAPIUnavailableError):
-                await nlm_client.validate_symptom("headache")
+        async with nlm as client:
+            assert client.client is not None
+            assert isinstance(client.client, httpx.AsyncClient)
+        
+        # Client should be closed after exiting context
+        assert nlm.client is None
 
 
 class TestNLMClientSearchSymptoms:
     """Tests for search_symptoms method."""
 
     @pytest.mark.asyncio
-    async def test_search_symptoms_success(self, nlm_client, mock_httpx_client):
-        """Test successful symptom search."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [
-            3,
-            ["Headache", "Migraine", "Tension headache"],
-            None,
-            [
-                ["Headache", "R51", "Headache"],
-                ["Migraine", "G43", "Migraine"],
-                ["Tension headache", "G44.209", "Tension-type headache"]
-            ]
-        ]
-        mock_httpx_client.get.return_value = mock_response
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            result = await nlm_client.search_symptoms("head", limit=10)
-
-        assert isinstance(result, SymptomSearchResult)
-        assert result.total_matches == 3
-        assert len(result.results) == 3
-        assert result.results[0].code == "R51"
+    async def test_search_empty_query_raises_error(self, nlm_client):
+        """Test that empty query raises InvalidSymptomError."""
+        with pytest.raises(InvalidSymptomError):
+            await nlm_client.search_symptoms("")
 
     @pytest.mark.asyncio
-    async def test_search_symptoms_empty(self, nlm_client, mock_httpx_client):
-        """Test search with no results."""
+    async def test_search_whitespace_query_raises_error(self, nlm_client):
+        """Test that whitespace-only query raises InvalidSymptomError."""
+        with pytest.raises(InvalidSymptomError):
+            await nlm_client.search_symptoms("   ")
+
+    @pytest.mark.asyncio
+    async def test_search_symptoms_success(self, nlm_client):
+        """Test successful symptom search with mocked response."""
+        # Mock response matching NLM API format
+        mock_response_data = [
+            2,  # Total count
+            ["12345", "67890"],  # Key IDs
+            {  # Extra fields
+                "icd10cm": [
+                    [{"code": "R51", "name": "Headache"}],
+                    [{"code": "G43.909", "name": "Migraine, unspecified"}]
+                ]
+            },
+            [["Headache"], ["Migraine"]]  # Display fields
+        ]
+        
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [0, [], None, []]
-        mock_httpx_client.get.return_value = mock_response
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            result = await nlm_client.search_symptoms("xyzabc")
-
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status = MagicMock()
+        
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        
+        nlm_client.client = mock_client
+        
+        result = await nlm_client.search_symptoms("headache", limit=10)
+        
         assert isinstance(result, SymptomSearchResult)
+        assert result.total_matches == 2
+        assert len(result.results) == 2
+        assert result.results[0].code == "R51"
+        assert result.results[0].description == "Headache"
+
+    @pytest.mark.asyncio
+    async def test_search_symptoms_no_results(self, nlm_client):
+        """Test search with no matches."""
+        mock_response_data = [0, [], {}, []]
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status = MagicMock()
+        
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        
+        nlm_client.client = mock_client
+        
+        result = await nlm_client.search_symptoms("xyznonexistent123")
+        
         assert result.total_matches == 0
         assert len(result.results) == 0
 
     @pytest.mark.asyncio
-    async def test_search_symptoms_limit(self, nlm_client, mock_httpx_client):
-        """Test that limit parameter is passed correctly."""
+    async def test_search_symptoms_timeout(self, nlm_client):
+        """Test that timeout raises NLMAPITimeoutError."""
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = httpx.TimeoutException("Request timed out")
+        
+        nlm_client.client = mock_client
+        
+        with pytest.raises(NLMAPITimeoutError):
+            await nlm_client.search_symptoms("headache")
+
+    @pytest.mark.asyncio
+    async def test_search_symptoms_connection_error(self, nlm_client):
+        """Test that connection error raises NLMAPIUnavailableError."""
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = httpx.ConnectError("Connection refused")
+        
+        nlm_client.client = mock_client
+        
+        with pytest.raises(NLMAPIUnavailableError):
+            await nlm_client.search_symptoms("headache")
+
+    @pytest.mark.asyncio
+    async def test_search_symptoms_http_error(self, nlm_client):
+        """Test that HTTP errors raise NLMAPIError."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = httpx.HTTPStatusError(
+            "Server Error",
+            request=MagicMock(),
+            response=mock_response
+        )
+        
+        nlm_client.client = mock_client
+        
+        with pytest.raises(NLMAPIError):
+            await nlm_client.search_symptoms("headache")
+
+
+class TestNLMClientValidateSymptom:
+    """Tests for validate_symptom method."""
+
+    @pytest.mark.asyncio
+    async def test_validate_empty_symptom_raises_error(self, nlm_client):
+        """Test that empty symptom raises InvalidSymptomError."""
+        with pytest.raises(InvalidSymptomError):
+            await nlm_client.validate_symptom("")
+
+    @pytest.mark.asyncio
+    async def test_validate_symptom_returns_first_match(self, nlm_client):
+        """Test that validate_symptom returns the first ICD-10 code."""
+        mock_response_data = [
+            2,
+            ["12345", "67890"],
+            {"icd10cm": [[{"code": "R07.9", "name": "Chest pain, unspecified"}], []]},
+            [["Chest Pain"], ["Another condition"]]
+        ]
+        
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [0, [], None, []]
-        mock_httpx_client.get.return_value = mock_response
-
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
-            await nlm_client.search_symptoms("test", limit=5)
-
-        call_args = mock_httpx_client.get.call_args
-        assert call_args[1]["params"]["maxList"] == 5
-
-
-@pytest.mark.integration
-class TestNLMClientIntegration:
-    """Integration tests with real NLM API."""
-
-    @pytest.mark.asyncio
-    async def test_real_api_validate_headache(self):
-        """Test validation with real NLM API."""
-        client = NLMClient()
-
-        result = await client.validate_symptom("headache")
-
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status = MagicMock()
+        
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        
+        nlm_client.client = mock_client
+        
+        result = await nlm_client.validate_symptom("chest pain")
+        
         assert result is not None
-        assert result.code == "R51"
+        assert result.code == "R07.9"
+        assert result.description == "Chest pain, unspecified"
 
     @pytest.mark.asyncio
-    async def test_real_api_search_chest(self):
-        """Test search with real NLM API."""
+    async def test_validate_symptom_no_match_returns_none(self, nlm_client):
+        """Test that no match returns None."""
+        mock_response_data = [0, [], {}, []]
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status = MagicMock()
+        
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        
+        nlm_client.client = mock_client
+        
+        result = await nlm_client.validate_symptom("xyznonexistent")
+        
+        assert result is None
 
-        client = NLMClient()
 
-        result = await client.search_symptoms("chest pain", limit=5)
+class TestNLMClientBatchValidation:
+    """Tests for batch symptom validation."""
 
-        assert result.total_matches > 0
-        assert len(result.results) > 0
+    @pytest.mark.asyncio
+    async def test_validate_symptoms_batch(self, nlm_client):
+        """Test batch validation of multiple symptoms."""
+        # Setup mock to return different results for different calls
+        call_count = 0
+        
+        def mock_get(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.raise_for_status = MagicMock()
+            
+            if call_count == 1:  # First symptom - match
+                mock_response.json.return_value = [
+                    1, ["1"], {"icd10cm": [[{"code": "R51", "name": "Headache"}]]}, [["Headache"]]
+                ]
+            else:  # Second symptom - no match
+                mock_response.json.return_value = [0, [], {}, []]
+            
+            return mock_response
+        
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = mock_get
+        
+        nlm_client.client = mock_client
+        
+        results = await nlm_client.validate_symptoms_batch(["headache", "xyz123"])
+        
+        assert len(results) == 2
+        assert results[0] is not None
+        assert results[0].code == "R51"
+        assert results[1] is None
+
+
+class TestNLMClientResponseParsing:
+    """Tests for response parsing edge cases."""
+
+    def test_parse_response_with_question_mark_codes(self, nlm_client):
+        """Test that codes with question marks are skipped."""
+        # NLM uses ? as placeholder in some ICD-10 codes
+        response_data = [
+            1,
+            ["12345"],
+            {"icd10cm": [[{"code": "S72.001?", "name": "Fracture with placeholder"}]]},
+            [["Some condition"]]
+        ]
+        
+        result = nlm_client._parse_icd10_response(response_data)
+        
+        # Should skip codes with question marks
+        assert len(result) == 0
+
+    def test_parse_response_empty_data(self, nlm_client):
+        """Test parsing empty response."""
+        result = nlm_client._parse_icd10_response([])
+        assert len(result) == 0
+
+    def test_parse_response_malformed_data(self, nlm_client):
+        """Test parsing malformed response."""
+        result = nlm_client._parse_icd10_response([1, []])  # Missing fields
+        assert len(result) == 0

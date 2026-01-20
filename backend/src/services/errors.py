@@ -41,6 +41,16 @@ class AppointmentNotFoundError(NotFoundError):
         super().__init__(f"Appointment {identifier} not found")
 
 
+class TriageRuleNotFoundError(NotFoundError):
+    def __init__(self, identifier: str):
+        super().__init__(f"Triage rule {identifier} not found")
+
+
+class TriageResultNotFoundError(NotFoundError):
+    def __init__(self, identifier: str):
+        super().__init__(f"Triage result {identifier} not found")
+
+
 class ConflictError(ServiceError):
     """Base class for all conflict/duplicate errors."""
 

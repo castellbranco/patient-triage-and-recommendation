@@ -8,10 +8,14 @@ from infrastructure.database.models.user import User
 from infrastructure.database.models.patient import Patient
 from infrastructure.database.models.provider import Provider
 from infrastructure.database.models.appointment import Appointment
+from infrastructure.database.models.triage import TriageRule, TriageResult, UrgencyLevel
 
 __all__ = [
     "User",
     "Patient",
     "Provider",
     "Appointment",
+    "TriageRule",
+    "TriageResult",
+    "UrgencyLevel",
 ]

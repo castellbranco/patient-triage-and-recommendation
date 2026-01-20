@@ -15,6 +15,7 @@ from infrastructure.api.auth import router as auth_router
 from infrastructure.api.patient import router as patient_router
 from infrastructure.api.provider import router as provider_router
 from infrastructure.api.user import router as user_router
+from infrastructure.api.triage import router as triage_router
 from services.errors import ServiceError
 
 
@@ -66,6 +67,7 @@ app.include_router(user_router, prefix="/api/v1")
 app.include_router(patient_router, prefix="/api/v1")
 app.include_router(provider_router, prefix="/api/v1")
 app.include_router(appointment_router, prefix="/api/v1")
+app.include_router(triage_router, prefix="/api/v1")
 
 
 @app.get("/health")

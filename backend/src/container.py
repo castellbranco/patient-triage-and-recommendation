@@ -15,6 +15,11 @@ from infrastructure.repo.user import UserRepository
 from infrastructure.repo.patient import PatientRepository
 from infrastructure.repo.provider import ProviderRepository
 from infrastructure.repo.appointment import AppointmentRepository
+from infrastructure.repo.triage import TriageRuleRepository, TriageResultRepository
+
+# External API Clients
+from infrastructure.ext.base import ISymptomValidator
+from infrastructure.ext.nlm_client import NLMClient
 
 # Services
 from services.user import UserService
@@ -22,6 +27,7 @@ from services.patient import PatientService
 from services.provider import ProviderService
 from services.appointment import AppointmentService
 from services.auth import AuthService
+from services.triage import TriageService
 
 
 class InfrastructureProvider(Provider):
@@ -86,6 +92,26 @@ class InfrastructureProvider(Provider):
         """Create AppointmentRepository with injected session."""
         return AppointmentRepository(session)
 
+    @provide(scope=Scope.REQUEST)
+    def get_triage_rule_repository(self, session: AsyncSession) -> TriageRuleRepository:
+        """Create TriageRuleRepository with injected session."""
+        return TriageRuleRepository(session)
+
+    @provide(scope=Scope.REQUEST)
+    def get_triage_result_repository(self, session: AsyncSession) -> TriageResultRepository:
+        """Create TriageResultRepository with injected session."""
+        return TriageResultRepository(session)
+
+    @provide(scope=Scope.APP)
+    async def get_nlm_client(self) -> AsyncIterable[NLMClient]:
+        """Create NLM API client (application-scoped)."""
+        client = NLMClient(
+            base_url=os.getenv("NLM_API_URL", "https://clinicaltables.nlm.nih.gov"),
+            timeout=float(os.getenv("NLM_API_TIMEOUT", "10.0")),
+        )
+        async with client:
+            yield client
+
 
 class ServiceProvider(Provider):
     """
@@ -133,6 +159,22 @@ class ServiceProvider(Provider):
     def get_auth_service(self, user_service: UserService) -> AuthService:
         """Create AuthService with injected UserService."""
         return AuthService(user_service)
+
+    @provide(scope=Scope.REQUEST)
+    def get_triage_service(
+        self,
+        triage_rule_repo: TriageRuleRepository,
+        triage_result_repo: TriageResultRepository,
+        patient_repo: PatientRepository,
+        nlm_client: NLMClient,
+    ) -> TriageService:
+        """Create TriageService with injected dependencies."""
+        return TriageService(
+            triage_rule_repo=triage_rule_repo,
+            triage_result_repo=triage_result_repo,
+            patient_repo=patient_repo,
+            nlm_client=nlm_client,
+        )
 
 
 def create_container():

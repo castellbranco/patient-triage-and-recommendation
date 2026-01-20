@@ -89,6 +89,9 @@ class Patient(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     appointments: Mapped[list["Appointment"]] = relationship(
         "Appointment", back_populates="patient", lazy="selectin", doc="Patient's appointments"
     )
+    triage_results: Mapped[list["TriageResult"]] = relationship(
+        "TriageResult", back_populates="patient", lazy="selectin", doc="Patient's triage history"
+    )
 
     __table_args__ = (
         CheckConstraint("date_of_birth <= CURRENT_DATE", name="chk_patient_dob_valid"),

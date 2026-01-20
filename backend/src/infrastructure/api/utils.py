@@ -12,6 +12,7 @@ from services.patient import PatientService
 from services.provider import ProviderService
 from services.appointment import AppointmentService
 from services.auth import AuthService
+from services.triage import TriageService
 
 
 class PaginationParams:
@@ -38,6 +39,7 @@ PatientServiceDep = FromDishka[PatientService]
 ProviderServiceDep = FromDishka[ProviderService]
 AppointmentServiceDep = FromDishka[AppointmentService]
 AuthServiceDep = FromDishka[AuthService]
+TriageServiceDep = FromDishka[TriageService]
 
 
 def not_found_exception(resource: str, identifier: str) -> HTTPException:
