@@ -2,11 +2,12 @@
 Triage Schemas - Pydantic models for triage API request/response.
 """
 
+import re
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from infrastructure.database.models.triage import UrgencyLevel
 
@@ -15,54 +16,97 @@ from infrastructure.database.models.triage import UrgencyLevel
 
 class ICD10CodeSchema(BaseModel):
     """Schema for an ICD-10 code with description."""
-    
-    code: str = Field(..., description="ICD-10 code (e.g., 'R07.9')")
-    description: str = Field(..., description="Description of the condition")
-    category: Optional[str] = Field(None, description="Category/consumer name")
-    
+
+    code: str = Field(
+        ...,
+        min_length=3,
+        max_length=10,
+        description="ICD-10 code (e.g., 'R07.9')",
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Description of the condition",
+    )
+    category: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Category/consumer name",
+    )
+
     model_config = {"from_attributes": True}
 
 
 # ============== Triage Rule Schemas ==============
 
+# Pattern for validating ICD-10 patterns (letter followed by alphanumeric, optional wildcard)
+ICD10_PATTERN_REGEX = re.compile(r"^[A-Z][A-Z0-9.]*%?$", re.IGNORECASE)
+
+
 class TriageRuleBase(BaseModel):
     """Base schema for triage rules."""
-    
+
     icd10_pattern: str = Field(
-        ..., 
-        min_length=1, 
+        ...,
+        min_length=1,
         max_length=20,
         description="ICD-10 pattern with SQL wildcards (e.g., 'R07%')",
     )
     condition_name: str = Field(
-        ..., 
-        min_length=1, 
+        ...,
+        min_length=1,
         max_length=255,
         description="Human-readable condition name",
     )
     urgency_level: UrgencyLevel = Field(
-        ..., 
+        ...,
         description="Urgency level for this condition",
     )
     recommended_specialty: str = Field(
-        ..., 
-        min_length=1, 
+        ...,
+        min_length=1,
         max_length=100,
         description="Recommended medical specialty",
     )
     description: Optional[str] = Field(
-        None, 
+        None,
+        max_length=2000,
         description="Additional notes about this rule",
     )
     is_active: bool = Field(
-        True, 
+        True,
         description="Whether this rule is active",
     )
     priority: int = Field(
-        0, 
-        ge=0, 
-        description="Priority for rule matching (higher = more priority)",
+        0,
+        ge=0,
+        le=1000,
+        description="Priority for rule matching (higher = more priority, max 1000)",
     )
+
+    @field_validator("icd10_pattern")
+    @classmethod
+    def validate_icd10_pattern(cls, v: str) -> str:
+        """Validate ICD-10 pattern format."""
+        v = v.strip().upper()
+        if not v:
+            raise ValueError("ICD-10 pattern cannot be empty")
+        if not ICD10_PATTERN_REGEX.match(v):
+            raise ValueError(
+                "ICD-10 pattern must start with a letter, followed by alphanumeric characters, "
+                "optionally ending with '%' wildcard (e.g., 'R07%', 'G43.9')"
+            )
+        return v
+
+    @field_validator("condition_name", "recommended_specialty")
+    @classmethod
+    def validate_not_whitespace_only(cls, v: str) -> str:
+        """Validate that string fields are not whitespace-only."""
+        v = v.strip()
+        if not v:
+            raise ValueError("Field cannot be empty or whitespace-only")
+        return v
 
 
 class TriageRuleCreate(TriageRuleBase):
@@ -72,14 +116,41 @@ class TriageRuleCreate(TriageRuleBase):
 
 class TriageRuleUpdate(BaseModel):
     """Schema for updating a triage rule."""
-    
+
     icd10_pattern: Optional[str] = Field(None, min_length=1, max_length=20)
     condition_name: Optional[str] = Field(None, min_length=1, max_length=255)
     urgency_level: Optional[UrgencyLevel] = None
     recommended_specialty: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=2000)
     is_active: Optional[bool] = None
-    priority: Optional[int] = Field(None, ge=0)
+    priority: Optional[int] = Field(None, ge=0, le=1000)
+
+    @field_validator("icd10_pattern")
+    @classmethod
+    def validate_icd10_pattern(cls, v: Optional[str]) -> Optional[str]:
+        """Validate ICD-10 pattern format if provided."""
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not v:
+            raise ValueError("ICD-10 pattern cannot be empty")
+        if not ICD10_PATTERN_REGEX.match(v):
+            raise ValueError(
+                "ICD-10 pattern must start with a letter, followed by alphanumeric characters, "
+                "optionally ending with '%' wildcard"
+            )
+        return v
+
+    @field_validator("condition_name", "recommended_specialty")
+    @classmethod
+    def validate_not_whitespace_only(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that string fields are not whitespace-only if provided."""
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Field cannot be empty or whitespace-only")
+        return v
 
 
 class TriageRuleResponse(TriageRuleBase):
@@ -96,20 +167,38 @@ class TriageRuleResponse(TriageRuleBase):
 
 class TriageAnalyzeRequest(BaseModel):
     """Request schema for symptom analysis."""
-    
+
     patient_id: UUID = Field(..., description="Patient ID to associate with the triage")
     symptoms: str = Field(
-        ..., 
-        min_length=3, 
+        ...,
+        min_length=3,
         max_length=2000,
         description="Free-text description of symptoms",
         examples=["I have severe chest pain and difficulty breathing"],
     )
     additional_notes: Optional[str] = Field(
-        None, 
+        None,
         max_length=1000,
         description="Additional context or notes",
     )
+
+    @field_validator("symptoms")
+    @classmethod
+    def validate_symptoms_not_whitespace(cls, v: str) -> str:
+        """Validate that symptoms are not whitespace-only."""
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Symptoms must be at least 3 characters after trimming whitespace")
+        return v
+
+    @field_validator("additional_notes")
+    @classmethod
+    def validate_notes(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and clean additional notes."""
+        if v is None:
+            return v
+        v = v.strip()
+        return v if v else None
 
 
 class MatchedRuleSchema(BaseModel):
@@ -133,14 +222,19 @@ class ProcessedSymptomSchema(BaseModel):
 
 class TriageAnalyzeResponse(BaseModel):
     """Response schema for symptom analysis."""
-    
+
     triage_id: UUID = Field(..., description="ID of the created triage result")
     patient_id: UUID = Field(..., description="Patient ID")
-    
+
     # Analysis results
     urgency_level: UrgencyLevel = Field(..., description="Final urgency assessment")
-    recommended_specialty: str = Field(..., description="Recommended specialty")
-    
+    recommended_specialty: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Recommended specialty",
+    )
+
     # Details
     processed_symptoms: List[ProcessedSymptomSchema] = Field(
         default_factory=list,
@@ -150,16 +244,16 @@ class TriageAnalyzeResponse(BaseModel):
         default_factory=list,
         description="Triage rules that matched",
     )
-    
+
     # Metadata
     confidence: Optional[float] = Field(
-        None, 
-        ge=0.0, 
+        None,
+        ge=0.0,
         le=1.0,
         description="Confidence score (0.0 to 1.0)",
     )
     created_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 

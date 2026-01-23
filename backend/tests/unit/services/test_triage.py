@@ -7,8 +7,13 @@ from unittest.mock import AsyncMock, MagicMock
 from infrastructure.database.models.triage import TriageRule, TriageResult, UrgencyLevel
 from infrastructure.database.schemas.triage import TriageAnalyzeRequest
 from infrastructure.ext.base import ICD10Code
-from services.triage import TriageService, DEFAULT_URGENCY, DEFAULT_SPECIALTY
-from services.errors import PatientNotFoundError
+from services.triage import (
+    TriageService,
+    DEFAULT_URGENCY,
+    DEFAULT_SPECIALTY,
+    MAX_SYMPTOMS_PER_REQUEST,
+)
+from services.errors import PatientNotFoundError, TriageResultNotFoundError
 
 
 @pytest.fixture
@@ -120,9 +125,21 @@ class TestTriageServiceSymptomParsing:
         assert "a" not in symptoms
 
     def test_parse_empty_string(self, triage_service):
-        """Test parsing empty string returns the original."""
+        """Test parsing empty string returns empty list."""
         symptoms = triage_service._parse_symptoms("")
-        assert symptoms == [""]
+        assert symptoms == []
+
+    def test_parse_whitespace_only(self, triage_service):
+        """Test parsing whitespace-only string returns empty list."""
+        symptoms = triage_service._parse_symptoms("   ")
+        assert symptoms == []
+
+    def test_parse_limits_symptom_count(self, triage_service):
+        """Test that symptom count is limited to MAX_SYMPTOMS_PER_REQUEST."""
+        # Create a string with many symptoms
+        many_symptoms = ", ".join([f"symptom{i}" for i in range(50)])
+        symptoms = triage_service._parse_symptoms(many_symptoms)
+        assert len(symptoms) <= MAX_SYMPTOMS_PER_REQUEST
 
 
 class TestTriageServiceUrgencyDetermination:
@@ -302,9 +319,9 @@ class TestTriageServiceHelperMethods:
 
     @pytest.mark.asyncio
     async def test_get_available_specialties(
-        self, 
-        triage_service, 
-        mock_triage_rule_repo
+        self,
+        triage_service,
+        mock_triage_rule_repo,
     ):
         """Test getting available specialties."""
         mock_triage_rule_repo.get_unique_specialties.return_value = [
@@ -312,9 +329,9 @@ class TestTriageServiceHelperMethods:
             "Neurology",
             "General Practice"
         ]
-        
+
         specialties = await triage_service.get_available_specialties()
-        
+
         assert len(specialties) == 3
         assert "Cardiology" in specialties
 
@@ -322,31 +339,107 @@ class TestTriageServiceHelperMethods:
     async def test_get_patient_triage_history_not_found(
         self,
         triage_service,
-        mock_patient_repo
+        mock_patient_repo,
     ):
         """Test that getting history for missing patient raises error."""
         mock_patient_repo.get_by_id.return_value = None
-        
+
         with pytest.raises(PatientNotFoundError):
             await triage_service.get_patient_triage_history(uuid.uuid4())
+
+    @pytest.mark.asyncio
+    async def test_get_patient_triage_history_limit_clamped(
+        self,
+        triage_service,
+        mock_patient_repo,
+        mock_triage_result_repo,
+        sample_patient,
+    ):
+        """Test that history limit is clamped to valid bounds."""
+        mock_patient_repo.get_by_id.return_value = sample_patient
+        mock_triage_result_repo.get_by_patient_id.return_value = []
+
+        # Test with very large limit - should be clamped
+        await triage_service.get_patient_triage_history(sample_patient.id, limit=500)
+        mock_triage_result_repo.get_by_patient_id.assert_called_with(
+            sample_patient.id, 100  # Clamped to max
+        )
 
     @pytest.mark.asyncio
     async def test_link_triage_to_appointment(
         self,
         triage_service,
-        mock_triage_result_repo
+        mock_triage_result_repo,
     ):
         """Test linking triage result to appointment."""
         triage_id = uuid.uuid4()
         appointment_id = uuid.uuid4()
-        
+
         mock_result = MagicMock()
         mock_result.appointment_id = appointment_id
         mock_triage_result_repo.link_to_appointment.return_value = mock_result
-        
+
         result = await triage_service.link_triage_to_appointment(triage_id, appointment_id)
-        
+
         mock_triage_result_repo.link_to_appointment.assert_called_once_with(
             triage_id, appointment_id
         )
         assert result.appointment_id == appointment_id
+
+    @pytest.mark.asyncio
+    async def test_link_triage_to_appointment_not_found(
+        self,
+        triage_service,
+        mock_triage_result_repo,
+    ):
+        """Test linking non-existent triage result raises error."""
+        mock_triage_result_repo.link_to_appointment.return_value = None
+
+        with pytest.raises(TriageResultNotFoundError):
+            await triage_service.link_triage_to_appointment(uuid.uuid4(), uuid.uuid4())
+
+    @pytest.mark.asyncio
+    async def test_get_triage_result_or_raise_not_found(
+        self,
+        triage_service,
+        mock_triage_result_repo,
+    ):
+        """Test that get_triage_result_or_raise raises error when not found."""
+        mock_triage_result_repo.get_by_id.return_value = None
+
+        with pytest.raises(TriageResultNotFoundError):
+            await triage_service.get_triage_result_or_raise(uuid.uuid4())
+
+
+class TestTriageServiceInitialization:
+    """Tests for TriageService initialization."""
+
+    def test_init_with_none_triage_rule_repo_raises_error(
+        self,
+        mock_triage_result_repo,
+        mock_patient_repo,
+        mock_nlm_client,
+    ):
+        """Test that None triage_rule_repo raises ValueError."""
+        with pytest.raises(ValueError, match="triage_rule_repo cannot be None"):
+            TriageService(
+                triage_rule_repo=None,
+                triage_result_repo=mock_triage_result_repo,
+                patient_repo=mock_patient_repo,
+                nlm_client=mock_nlm_client,
+            )
+
+    def test_init_with_none_nlm_client_raises_error(
+        self,
+        mock_triage_rule_repo,
+        mock_triage_result_repo,
+        mock_patient_repo,
+    ):
+        """Test that None nlm_client raises ValueError."""
+        with pytest.raises(ValueError, match="nlm_client cannot be None"):
+            TriageService(
+                triage_rule_repo=mock_triage_rule_repo,
+                triage_result_repo=mock_triage_result_repo,
+                patient_repo=mock_patient_repo,
+                nlm_client=None,
+            )

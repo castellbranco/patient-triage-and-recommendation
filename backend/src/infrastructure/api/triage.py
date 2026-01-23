@@ -5,10 +5,11 @@ Triage API Module - Routes for triage/symptom analysis endpoints.
 from typing import List
 from uuid import UUID
 
-from dishka.integrations.fastapi import DishkaRoute
-from fastapi import APIRouter, status
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+from fastapi import APIRouter, Query, status
 
 from infrastructure.api.utils import Pagination
+from infrastructure.database.models.triage import TriageRule
 from infrastructure.database.schemas.triage import (
     TriageAnalyzeRequest,
     TriageAnalyzeResponse,
@@ -18,14 +19,18 @@ from infrastructure.database.schemas.triage import (
     TriageRuleUpdate,
     SpecialtiesListResponse,
 )
+from services.errors import NotFoundError, TriageRuleNotFoundError, TriageResultNotFoundError
 from services.triage import TriageService
-from dishka.integrations.fastapi import FromDishka
 
 
 router = APIRouter(prefix="/triage", tags=["Triage"], route_class=DishkaRoute)
 
 # Type alias for dependency injection
 TriageServiceDep = FromDishka[TriageService]
+
+# Constants for validation
+MAX_HISTORY_LIMIT = 100
+DEFAULT_HISTORY_LIMIT = 10
 
 
 # ============== Symptom Analysis Endpoints ==============
@@ -79,10 +84,7 @@ async def get_triage_result(
     service: TriageServiceDep,
 ) -> TriageResultResponse:
     """Get a specific triage result by ID."""
-    result = await service.get_triage_result(triage_id)
-    if not result:
-        from services.errors import NotFoundError
-        raise NotFoundError(f"Triage result {triage_id} not found")
+    result = await service.get_triage_result_or_raise(triage_id)
     return TriageResultResponse.model_validate(result)
 
 
@@ -98,7 +100,12 @@ async def get_triage_result(
 async def get_patient_triage_history(
     patient_id: UUID,
     service: TriageServiceDep,
-    limit: int = 10,
+    limit: int = Query(
+        default=DEFAULT_HISTORY_LIMIT,
+        ge=1,
+        le=MAX_HISTORY_LIMIT,
+        description="Maximum number of results to return",
+    ),
 ) -> List[TriageResultResponse]:
     """Get triage history for a specific patient."""
     results = await service.get_patient_triage_history(patient_id, limit)
@@ -167,7 +174,7 @@ async def create_triage_rule(
 ) -> TriageRuleResponse:
     """
     Create a new triage rule.
-    
+
     **Example:**
     ```json
     {
@@ -178,8 +185,6 @@ async def create_triage_rule(
     }
     ```
     """
-    from infrastructure.database.models.triage import TriageRule
-    
     rule = TriageRule(
         icd10_pattern=rule_data.icd10_pattern,
         condition_name=rule_data.condition_name,
@@ -189,7 +194,7 @@ async def create_triage_rule(
         is_active=rule_data.is_active,
         priority=rule_data.priority,
     )
-    
+
     created_rule = await service.triage_rule_repo.create(rule)
     return TriageRuleResponse.model_validate(created_rule)
 
@@ -211,14 +216,13 @@ async def update_triage_rule(
     """Update an existing triage rule."""
     rule = await service.triage_rule_repo.get_by_id(rule_id)
     if not rule:
-        from services.errors import NotFoundError
-        raise NotFoundError(f"Triage rule {rule_id} not found")
-    
+        raise TriageRuleNotFoundError(str(rule_id))
+
     # Update only provided fields
     update_data = rule_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(rule, field, value)
-    
+
     updated_rule = await service.triage_rule_repo.update(rule)
     return TriageRuleResponse.model_validate(updated_rule)
 
@@ -238,12 +242,11 @@ async def delete_triage_rule(
 ) -> None:
     """
     Delete a triage rule.
-    
+
     Consider using PATCH to set is_active=false for soft deactivation.
     """
     rule = await service.triage_rule_repo.get_by_id(rule_id)
     if not rule:
-        from services.errors import NotFoundError
-        raise NotFoundError(f"Triage rule {rule_id} not found")
-    
+        raise TriageRuleNotFoundError(str(rule_id))
+
     await service.triage_rule_repo.delete(rule)

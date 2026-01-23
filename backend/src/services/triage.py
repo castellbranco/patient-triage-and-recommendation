@@ -33,6 +33,8 @@ from services.errors import (
     NLMAPIError,
     NLMAPITimeoutError,
     NLMAPIUnavailableError,
+    InvalidSymptomError,
+    TriageResultNotFoundError,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,11 +44,16 @@ logger = logging.getLogger(__name__)
 DEFAULT_URGENCY = UrgencyLevel.MEDIUM
 DEFAULT_SPECIALTY = "General Practice"
 
+# Symptom parsing constants
+MIN_SYMPTOM_LENGTH = 2
+MAX_SYMPTOMS_PER_REQUEST = 20
+SYMPTOM_DELIMITERS = re.compile(r'[,;]|\band\b|\balso\b|\bwith\b', re.IGNORECASE)
+
 
 class TriageService:
     """
     Service for patient triage and symptom analysis.
-    
+
     This is the "brain" of the triage engine that:
     - Parses free-text symptoms
     - Calls NLM API to get standardized ICD-10 codes
@@ -54,7 +61,7 @@ class TriageService:
     - Determines the highest urgency level
     - Recommends the appropriate specialty
     """
-    
+
     def __init__(
         self,
         triage_rule_repo: TriageRuleRepository,
@@ -62,6 +69,15 @@ class TriageService:
         patient_repo: PatientRepository,
         nlm_client: ISymptomValidator,
     ):
+        if triage_rule_repo is None:
+            raise ValueError("triage_rule_repo cannot be None")
+        if triage_result_repo is None:
+            raise ValueError("triage_result_repo cannot be None")
+        if patient_repo is None:
+            raise ValueError("patient_repo cannot be None")
+        if nlm_client is None:
+            raise ValueError("nlm_client cannot be None")
+
         self.triage_rule_repo = triage_rule_repo
         self.triage_result_repo = triage_result_repo
         self.patient_repo = patient_repo
@@ -70,123 +86,161 @@ class TriageService:
     def _parse_symptoms(self, text: str) -> List[str]:
         """
         Parse free-text into individual symptom phrases.
-        
+
         Splits on common delimiters like commas, 'and', semicolons.
-        
+
         Args:
             text: Free-text symptom description
-            
+
         Returns:
-            List of individual symptom phrases
+            List of individual symptom phrases (max MAX_SYMPTOMS_PER_REQUEST)
         """
+        if not text:
+            return []
+
         # Normalize the text
-        text = text.strip().lower()
-        
+        normalized = text.strip().lower()
+
+        if not normalized:
+            return []
+
         # Split on common delimiters
         # "chest pain and headache, nausea" -> ["chest pain", "headache", "nausea"]
-        symptoms = re.split(r'[,;]|\band\b|\balso\b|\bwith\b', text)
-        
+        symptoms = SYMPTOM_DELIMITERS.split(normalized)
+
         # Clean up each symptom
-        cleaned = []
+        cleaned: List[str] = []
         for symptom in symptoms:
             symptom = symptom.strip()
-            if symptom and len(symptom) >= 2:  # Skip very short fragments
+            # Skip very short fragments that are likely parsing artifacts
+            if symptom and len(symptom) >= MIN_SYMPTOM_LENGTH:
                 cleaned.append(symptom)
-        
+                # Limit number of symptoms to prevent abuse
+                if len(cleaned) >= MAX_SYMPTOMS_PER_REQUEST:
+                    logger.warning(
+                        "Symptom limit reached, truncating to %d symptoms",
+                        MAX_SYMPTOMS_PER_REQUEST,
+                    )
+                    break
+
         # If no splits occurred, treat the whole text as one symptom
-        if not cleaned:
-            cleaned = [text]
-        
+        if not cleaned and len(normalized) >= MIN_SYMPTOM_LENGTH:
+            cleaned = [normalized]
+
         return cleaned
     
     async def _validate_symptoms_with_nlm(
-        self, 
-        symptoms: List[str]
+        self,
+        symptoms: List[str],
     ) -> List[Tuple[str, Optional[ICD10Code]]]:
         """
         Validate each symptom against NLM API.
-        
+
         Args:
             symptoms: List of symptom phrases
-            
+
         Returns:
-            List of (symptom_text, ICD10Code or None) tuples
+            List of (symptom_text, ICD10Code or None) tuples.
+            Order is preserved to match input.
         """
-        results = []
-        
+        if not symptoms:
+            return []
+
+        results: List[Tuple[str, Optional[ICD10Code]]] = []
+
         for symptom in symptoms:
             try:
                 icd10_code = await self.nlm_client.validate_symptom(symptom)
                 results.append((symptom, icd10_code))
+            except InvalidSymptomError as e:
+                # Input validation failed - log at debug level
+                logger.debug("Invalid symptom '%s': %s", symptom[:30], str(e))
+                results.append((symptom, None))
             except (NLMAPIError, NLMAPITimeoutError, NLMAPIUnavailableError) as e:
-                logger.warning(f"NLM API error for symptom '{symptom}': {e}")
+                # API errors - log at warning level
+                logger.warning("NLM API error for symptom '%s': %s", symptom[:30], str(e)[:50])
                 results.append((symptom, None))
             except Exception as e:
-                logger.error(f"Unexpected error validating symptom '{symptom}': {e}")
+                # Unexpected errors - log at error level but don't fail the whole request
+                logger.error("Unexpected error validating symptom '%s': %s", symptom[:30], str(e)[:50])
                 results.append((symptom, None))
-        
+
         return results
     
-    def _determine_urgency(
-        self, 
-        matched_rules: List[TriageRule]
-    ) -> Tuple[UrgencyLevel, str]:
-        """
-        Determine the highest urgency level from matched rules.
-        
-        Returns the urgency and specialty from the highest-priority rule.
-        
-        Args:
-            matched_rules: List of matched triage rules
-            
-        Returns:
-            Tuple of (UrgencyLevel, recommended_specialty)
-        """
-        if not matched_rules:
-            return DEFAULT_URGENCY, DEFAULT_SPECIALTY
-        
-        # Urgency ordering (higher = more urgent)
-        urgency_order = {
+    @staticmethod
+    def _get_urgency_order() -> dict:
+        """Return urgency level ordering (higher = more urgent)."""
+        return {
             UrgencyLevel.LOW: 1,
             UrgencyLevel.MEDIUM: 2,
             UrgencyLevel.HIGH: 3,
             UrgencyLevel.EMERGENCY: 4,
         }
-        
+
+    def _determine_urgency(
+        self,
+        matched_rules: List[TriageRule],
+    ) -> Tuple[UrgencyLevel, str]:
+        """
+        Determine the highest urgency level from matched rules.
+
+        Returns the urgency and specialty from the highest-priority rule.
+
+        Args:
+            matched_rules: List of matched triage rules
+
+        Returns:
+            Tuple of (UrgencyLevel, recommended_specialty)
+        """
+        if not matched_rules:
+            return DEFAULT_URGENCY, DEFAULT_SPECIALTY
+
+        urgency_order = self._get_urgency_order()
+
         # Find the rule with highest urgency (rules are already sorted by priority)
         highest_rule = max(
-            matched_rules, 
-            key=lambda r: (urgency_order.get(r.urgency_level, 0), r.priority)
+            matched_rules,
+            key=lambda r: (urgency_order.get(r.urgency_level, 0), r.priority),
         )
-        
+
         return highest_rule.urgency_level, highest_rule.recommended_specialty
     
+    @staticmethod
     def _calculate_confidence(
-        self, 
-        total_symptoms: int, 
-        matched_symptoms: int, 
-        matched_rules: int
+        total_symptoms: int,
+        matched_symptoms: int,
+        matched_rules: int,
     ) -> float:
         """
         Calculate a confidence score for the triage result.
-        
+
         Based on:
         - How many symptoms were matched to ICD-10 codes
         - How many rules were matched
-        
-        Returns a score between 0.0 and 1.0
+
+        Args:
+            total_symptoms: Total number of symptoms parsed
+            matched_symptoms: Number of symptoms matched to ICD-10 codes
+            matched_rules: Number of triage rules matched
+
+        Returns:
+            Score between 0.0 and 1.0
         """
-        if total_symptoms == 0:
+        if total_symptoms <= 0:
             return 0.0
-        
+
+        # Ensure non-negative inputs
+        matched_symptoms = max(0, matched_symptoms)
+        matched_rules = max(0, matched_rules)
+
         # Symptom match ratio (50% weight)
-        symptom_ratio = matched_symptoms / total_symptoms
-        
+        symptom_ratio = min(matched_symptoms / total_symptoms, 1.0)
+
         # Rule match bonus (50% weight, maxes out at 3+ rules)
         rule_bonus = min(matched_rules / 3.0, 1.0)
-        
+
         confidence = (symptom_ratio * 0.5) + (rule_bonus * 0.5)
-        
+
         return round(confidence, 2)
     
     async def analyze_symptoms(
@@ -295,31 +349,82 @@ class TriageService:
     async def get_triage_result(self, triage_id: UUID) -> Optional[TriageResult]:
         """Get a specific triage result by ID."""
         return await self.triage_result_repo.get_by_id(triage_id)
-    
+
+    async def get_triage_result_or_raise(self, triage_id: UUID) -> TriageResult:
+        """
+        Get a specific triage result by ID, raising if not found.
+
+        Args:
+            triage_id: UUID of the triage result
+
+        Returns:
+            TriageResult
+
+        Raises:
+            TriageResultNotFoundError: If result not found
+        """
+        result = await self.triage_result_repo.get_by_id(triage_id)
+        if not result:
+            raise TriageResultNotFoundError(str(triage_id))
+        return result
+
     async def get_patient_triage_history(
-        self, 
-        patient_id: UUID, 
-        limit: int = 10
+        self,
+        patient_id: UUID,
+        limit: int = 10,
     ) -> List[TriageResult]:
-        """Get triage history for a patient."""
+        """
+        Get triage history for a patient.
+
+        Args:
+            patient_id: UUID of the patient
+            limit: Maximum number of results (1-100)
+
+        Returns:
+            List of TriageResult objects, most recent first
+
+        Raises:
+            PatientNotFoundError: If patient doesn't exist
+        """
+        # Validate limit bounds
+        if limit < 1:
+            limit = 1
+        elif limit > 100:
+            limit = 100
+
         # Verify patient exists
         patient = await self.patient_repo.get_by_id(patient_id)
         if not patient:
             raise PatientNotFoundError(str(patient_id))
-        
+
         return await self.triage_result_repo.get_by_patient_id(patient_id, limit)
-    
+
     async def get_available_specialties(self) -> List[str]:
         """Get list of all available specialties from triage rules."""
         return await self.triage_rule_repo.get_unique_specialties()
-    
+
     async def link_triage_to_appointment(
-        self, 
-        triage_id: UUID, 
-        appointment_id: UUID
-    ) -> Optional[TriageResult]:
-        """Link a triage result to a created appointment."""
-        return await self.triage_result_repo.link_to_appointment(
-            triage_id, 
-            appointment_id
+        self,
+        triage_id: UUID,
+        appointment_id: UUID,
+    ) -> TriageResult:
+        """
+        Link a triage result to a created appointment.
+
+        Args:
+            triage_id: UUID of the triage result
+            appointment_id: UUID of the appointment
+
+        Returns:
+            Updated TriageResult
+
+        Raises:
+            TriageResultNotFoundError: If triage result not found
+        """
+        result = await self.triage_result_repo.link_to_appointment(
+            triage_id,
+            appointment_id,
         )
+        if not result:
+            raise TriageResultNotFoundError(str(triage_id))
+        return result
