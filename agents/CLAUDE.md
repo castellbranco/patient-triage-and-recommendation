@@ -151,7 +151,7 @@ Application Layer
 Domain Layer (Innermost)
 ```
 
-#### 1. Domain Layer (`backend/src/app/domain/`)
+#### 1. Domain Layer (`backend/src/domain/`)
 - **Purpose**: Core business entities and rules
 - **Contains**: Entities, Value Objects, Domain Exceptions
 - **Rules**:
@@ -160,31 +160,35 @@ Domain Layer (Innermost)
   - No framework imports
   - Rich domain models with behavior
 
-#### 2. Application Layer (`backend/src/app/application/`)
-- **Purpose**: Business logic orchestration (use cases)
-- **Contains**: Use Cases, DTOs, Interfaces (Protocols)
+#### 2. Services Layer (`backend/src/services/`)
+- **Purpose**: Business logic orchestration
+- **Contains**: Service classes, Interfaces (Protocols), Error definitions
 - **Rules**:
   - Can depend on Domain layer only
   - Defines abstract interfaces for infrastructure
   - Contains application-specific business rules
-  - No framework or database code
 
-#### 3. Infrastructure Layer (`backend/src/app/infrastructure/`)
+#### 3. Infrastructure Layer (`backend/src/infrastructure/`)
 - **Purpose**: External system implementations
-- **Contains**: Database (SQLAlchemy models), Repositories, External API adapters, Configuration
+- **Contains**:
+  - `database/models/` - SQLAlchemy models
+  - `database/schemas/` - Pydantic schemas
+  - `repo/` - Repository implementations
+  - `api/` - FastAPI routers
+  - `ext/` - External API adapters (NLM client)
 - **Rules**:
-  - Implements interfaces defined in Application layer
+  - Implements interfaces defined in Services layer
   - All external dependencies live here
   - Framework-specific code (SQLAlchemy, httpx, etc.)
 
-#### 4. Presentation Layer (`backend/src/app/presentation/`)
+#### 4. API Layer (`backend/src/infrastructure/api/`)
 - **Purpose**: API endpoints and request/response handling
-- **Contains**: FastAPI routers, Dependencies, Serialization
+- **Contains**: FastAPI routers, Dependencies
 - **Structure**:
-  - `api/public/v1/` - Public, versioned endpoints
-  - `api/internal/` - Internal, non-versioned endpoints
+  - `public/v1/` - Public, versioned endpoints
+  - Domain-specific routers (auth, triage, patient, etc.)
 - **Rules**:
-  - Thin layer that delegates to use cases
+  - Thin layer that delegates to services
   - No business logic
   - Handles HTTP concerns only
 
@@ -216,8 +220,10 @@ async def register_patient(
 #### NLM Medical Conditions API
 - **Purpose**: Symptom validation and ICD-10 code lookup
 - **Base URL**: `https://clinicaltables.nlm.nih.gov`
-- **Implementation**: `app/infrastructure/external/nlm_client.py` (Phase 2)
-- **Pattern**: Adapter pattern - abstracts external API behind `INLMClient` interface
+- **Interface**: `backend/src/infrastructure/ext/base.py` (`ISymptomValidator` protocol)
+- **Implementation**: `backend/src/infrastructure/ext/nlm_client.py` (`NLMClient` class)
+- **Pattern**: Adapter pattern - abstracts external API behind `ISymptomValidator` interface
+- **Features**: Async HTTP calls, retry logic, timeout handling, graceful degradation
 
 ## Project Progression
 
@@ -300,10 +306,11 @@ postgresql+asyncpg://user:password@host:port/database
 ```
 
 ### Migration Workflow
-1. Modify SQLAlchemy models in `backend/src/app/infrastructure/database/models/`
-2. Generate migration: `pdm run migrate-create "description"`
-3. Review generated migration in `backend/alembic/versions/`
-4. Apply migration: `pdm run migrate`
+1. Modify SQLAlchemy models in `backend/src/infrastructure/database/models/`
+2. Register new models in `backend/src/infrastructure/database/models/__init__.py`
+3. Generate migration: `pdm run migrate-create "description"`
+4. Review generated migration in `backend/alembic/versions/`
+5. Apply migration: `pdm run migrate`
 
 ## Docker Services
 
@@ -317,8 +324,9 @@ The `docker-compose.yml` defines three services:
 2. **backend**: FastAPI application
    - Port: 8000
    - Depends on: postgres
-   - Command: `uvicorn app.main:app --reload`
+   - Command: `uvicorn src.main:app --reload`
    - Health check: `/api/public/v1/health`
+   - Volume: `./backend:/app` (hot-reload enabled)
 
 3. **frontend**: Streamlit application
    - Port: 8501
@@ -347,22 +355,35 @@ When working on this codebase:
 
 ## Current Status
 
-The project is currently at the **skeleton/MVP stage** (pre-v0.1.0):
-- Basic FastAPI application structure
-- Main entry point with lifespan management
-- CORS middleware configured
-- Health check endpoint structure (implementation pending)
-- Directory structure for Clean Architecture layers
-- Docker Compose configuration
-- PDM scripts for common operations
+The project is currently at **Phase 2 Complete** (v0.2.0-triage-engine):
 
-**Next steps** (Phase 1 - v0.1.0-mvp):
-- Implement Domain entities (User, Patient)
-- Set up PostgreSQL connection with SQLAlchemy
-- Implement JWT authentication
-- Create user registration and login endpoints
-- Set up Dishka dependency injection container
-- Add initial database migrations
+### Phase 1 - MVP (Complete)
+- FastAPI application with Clean Architecture
+- PostgreSQL with SQLAlchemy 2.0 (async)
+- JWT authentication (login, register, refresh tokens)
+- User, Patient, Provider, Appointment models
+- Dishka dependency injection container
+- Alembic migrations
+- 107 unit tests passing
+
+### Phase 2 - Triage Engine (Complete)
+- **NLM API Integration**: Symptom validation against ICD-10 codes
+- **Triage Service**: Analyzes symptoms, determines urgency levels
+- **Database Models**: `TriageRule`, `TriageResult` with `UrgencyLevel` enum
+- **API Endpoints**:
+  - `POST /api/v1/triage/analyze` - Analyze patient symptoms
+  - `GET /api/v1/triage/results/{id}` - Get triage result
+  - `GET /api/v1/triage/patient/{id}/history` - Patient history
+  - `GET /api/v1/triage/specialties` - List specialties
+  - CRUD for `/api/v1/triage/rules` - Manage triage rules
+- **21 seeded triage rules** across 4 urgency levels (EMERGENCY, HIGH, MEDIUM, LOW)
+- **36 Phase 2 tests** passing
+
+### Next Steps (Phase 3 - v0.3.0-security)
+- Role-Based Access Control (RBAC)
+- Audit logging
+- Security headers
+- Rate limiting
 
 ## Additional Resources
 
@@ -370,5 +391,7 @@ The project is currently at the **skeleton/MVP stage** (pre-v0.1.0):
 - [ADR-001: PostgreSQL](docs/decisions/ADR-001-postgresql.md)
 - [ADR-002: Dishka DI](docs/decisions/ADR-002-dishka-di.md)
 - [ADR-005: NLM API](docs/decisions/ADR-005-nlm-api.md)
+- [Phase 2 Status](docs/PHASE_2_STATUS.md)
+- [API Testing Guide](docs/API_TESTING_GUIDE.md)
 - [Backend README](backend/README.md)
 - [Frontend README](frontend/README.md)

@@ -23,6 +23,22 @@ class TriageRuleRepository(BaseRepository):
     
     model = TriageRule
     
+    async def get_by_id(self, entity_id: UUID) -> Optional[TriageRule]:
+        """Get triage rule by ID (no soft delete on this model)."""
+        stmt = select(TriageRule).where(TriageRule.id == entity_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def get_all(self, skip: int = 0, limit: int = 100) -> List[TriageRule]:
+        """Get all triage rules with pagination."""
+        stmt = (
+            select(TriageRule)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+    
     async def get_active_rules(self) -> List[TriageRule]:
         """Get all active triage rules ordered by priority."""
         stmt = (
